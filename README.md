@@ -6,8 +6,8 @@ This is a telegram bot that interacts with Google Sheets to save expenses based 
 1. Clone the repository:
 
 ```
-git clone https://github.com/sickmz/twallet.git
-cd twallet
+git clone https://github.com/sickmz/microw.git
+cd microw
 ```
 
 ## Create a virtual environment:
@@ -58,20 +58,20 @@ USER_ID=your_user_id
 1. Create a new systemd service file:
 
 ```
-sudo nano /etc/systemd/system/twallet.service
+sudo nano /etc/systemd/system/microw.service
 ```
 
 2. Copy the following content into the file:
 
 ```
 [Unit]
-Description=twallet
+Description=microw
 After=network.target
 
 [Service]
 Type=simple
-ExecStart=/home/$USER/code-server/workspace/pyTwallet/venv/bin/python3 twallet.py
-WorkingDirectory=/home/$USER/code-server/workspace/twallet
+ExecStart=/home/$USER/code-server/workspace/microw/venv/bin/python3 microw.py
+WorkingDirectory=/home/$USER/code-server/workspace/microw
 
 [Install]
 WantedBy=multi-user.target
@@ -88,19 +88,19 @@ sudo systemctl daemon-reload
 5. Enable the service:
 
 ```
-sudo systemctl enable twallet.service
+sudo systemctl enable microw.service
 ```
 
 6. Start the service:
 
 ```
-sudo systemctl start twallet.service
+sudo systemctl start microw.service
 ```
 
 7. Check the service status:
 
 ```
-sudo systemctl status twallet.service
+sudo systemctl status microw.service
 ```
 
 ## Usage
