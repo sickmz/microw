@@ -1,6 +1,9 @@
 ## Overview
 This is a telegram bot that interacts with Google Sheets to save expenses based on user input.
 
+## Demo
+![demo](https://github.com/sickmz/microw/assets/24682196/adb826ae-2834-484e-a2de-e93dc21f191c)
+
 ## Installation
 
 1. Clone the repository:
