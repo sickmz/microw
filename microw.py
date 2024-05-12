@@ -103,20 +103,26 @@ async def choose_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 async def save_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Save and restart the context"""
-    price = float(update.message.text.replace(',', '.'))
-    selected_category = context.user_data["selected_category"]
-    selected_subcategory = context.user_data["selected_subcategory"]
-    await update.message.reply_text(
-        f"<b>Expense saved 📌</b>\n\n"
-        f"<b>Category:</b> {selected_category}\n"
-        f"<b>Subcategory:</b> {selected_subcategory}\n"
-        f"<b>Price:</b> {price} €",
-        parse_mode='HTML',  # Abilita la formattazione HTML
-        disable_notification=True,
-    )
+    try:
+        price = float(update.message.text.replace(',', '.'))
 
-    ws = gspread.service_account(filename='credentials.json').open_by_key(SPREADSHEET_ID).worksheet(EXPENSE_SHEET)
-    ws.append_row([datetime.datetime.now().strftime("%B"), selected_category, selected_subcategory, price, datetime.datetime.now().strftime("%d/%m/%Y")])
+        selected_category = context.user_data["selected_category"]
+        selected_subcategory = context.user_data["selected_subcategory"]
+        await update.message.reply_text(
+            f"<b>Expense saved 📌</b>\n\n"
+            f"<b>Category:</b> {selected_category}\n"
+            f"<b>Subcategory:</b> {selected_subcategory}\n"
+            f"<b>Price:</b> {price} €",
+            parse_mode='HTML',  # Abilita la formattazione HTML
+            disable_notification=True,
+        )
+
+        ws = gspread.service_account(filename='credentials.json').open_by_key(SPREADSHEET_ID).worksheet(EXPENSE_SHEET)
+        print(datetime.datetime.now().strftime("%d/%m/%Y"))
+        ws.append_row([datetime.datetime.now().strftime("%B"), selected_category, selected_subcategory, price, datetime.datetime.now().strftime('%d/%m/%Y')])
+
+    except ValueError:
+            await update.message.reply_text("Please enter a valid price. 🚨", disable_notification=True)
 
     return await start(update, context)
 
