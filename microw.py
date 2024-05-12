@@ -97,7 +97,7 @@ async def choose_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     selected_category = context.user_data["selected_category"]
     context.user_data["selected_subcategory"] = selected_subcategory
 
-    await update.message.reply_text("Enter the price for this item:", forceReplay=True)
+    await update.message.reply_text("Enter the price for this item:")
 
     return CHOOSING_PRICE
 
@@ -107,10 +107,11 @@ async def save_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     selected_category = context.user_data["selected_category"]
     selected_subcategory = context.user_data["selected_subcategory"]
     await update.message.reply_text(
-        f"Expense saved! ✨ \n\n"
-        f"Category: {selected_category}\n"
-        f"Subcategory: {selected_subcategory}\n"
-        f"Price: {price} €",
+        f"<b>Expense saved 📌</b>\n\n"
+        f"<b>Category:</b> {selected_category}\n"
+        f"<b>Subcategory:</b> {selected_subcategory}\n"
+        f"<b>Price:</b> {price} €",
+        parse_mode='HTML',  # Abilita la formattazione HTML
         disable_notification=True,
     )
 
