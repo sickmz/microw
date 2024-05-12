@@ -97,7 +97,7 @@ async def choose_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     selected_category = context.user_data["selected_category"]
     context.user_data["selected_subcategory"] = selected_subcategory
 
-    await update.message.reply_text("Enter the price for this item:")
+    await update.message.reply_text("Enter the price for this item:", forceReplay=True)
 
     return CHOOSING_PRICE
 
