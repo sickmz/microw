@@ -1,4 +1,4 @@
 credentials.json
-venv/
+personalenv/
 .env
 __pycache__
