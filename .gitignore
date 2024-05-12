@@ -2,3 +2,4 @@ credentials.json
 personalenv/
 .env
 __pycache__
+microw__personal.py
