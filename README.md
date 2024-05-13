@@ -3,13 +3,9 @@ This is a telegram bot that interacts with Google Sheets to save expenses based 
 
 ## Demo
 
-| Add expense | Delete expense 
-|:----------------:|:----------------:|
-| <img src="demo/add.gif"  height="512"> | <img src="demo/delete.gif"  height="512"> | 
-
-| Summary |
-|:----------------:|
-| <img src="demo/summary.gif"  height="512"> |
+| Add expense | Delete expense | Summary |
+|:----------------:|:----------------:|:----------------:|
+| <img src="demo/add.gif"  height="400"> | <img src="demo/delete.gif"  height="400"> | <img src="demo/summary.gif"  height="400"> | 
 
 ## Installation
 
