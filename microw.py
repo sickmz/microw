@@ -1,9 +1,12 @@
 import logging
 import os
-from dotenv import load_dotenv, dotenv_values 
+import pandas as pd
+import matplotlib.pyplot as plt
 import gspread
 import datetime
+import calendar
 
+from dotenv import load_dotenv, dotenv_values 
 from typing import Dict
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
@@ -113,7 +116,7 @@ async def save_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             f"<b>Category:</b> {selected_category}\n"
             f"<b>Subcategory:</b> {selected_subcategory}\n"
             f"<b>Price:</b> {price} €",
-            parse_mode='HTML',  # Abilita la formattazione HTML
+            parse_mode='HTML', 
             disable_notification=True,
         )
 
@@ -136,7 +139,7 @@ async def start_delete_process(update: Update, context: ContextTypes.DEFAULT_TYP
     combined_data = [[str(index)] + row for index, row in zip(row_indices, last_five_rows)]
 
     expense_options = [
-        f"ID: {data[0]} ❌ {data[2]}/{data[3]} -> {data[4]} € ❌"
+        f"ID: {data[0]} 🗑️ {data[2]}/{data[3]}: {data[4]} €"
         for data in combined_data
     ]
 
@@ -159,8 +162,40 @@ async def delete_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     return await start(update, context)
 
 async def show_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Get all the expenses and do some magic calculations."""
-    await update.message.reply_text("Work in progress..")
+    """Get all the expenses and create a graph."""
+    ws = gspread.service_account(filename='credentials.json').open_by_key(SPREADSHEET_ID).worksheet(EXPENSE_SHEET)
+    values = ws.get_all_values()
+
+    df = pd.DataFrame(values[1:], columns=values[0])
+    df['Price'] = df['Price'].str.replace(',', '.').astype(float)
+
+    expenses_by_category = df.groupby('Category')['Price'].sum().reset_index()
+
+    plt.figure(figsize=(10, 6))
+    pie = plt.pie(expenses_by_category['Price'], labels=None, autopct=lambda p: f'{p:.1f}% ({p*sum(expenses_by_category["Price"])/100:.2f} €)' if p > 5 else '', startangle=90)
+    plt.legend(pie[0], expenses_by_category['Category'], loc="best")
+    plt.axis('equal')
+    plt.savefig('chart/expense_by_category_by_year.png')
+
+    top_categories = df.groupby('Category')['Price'].sum().nlargest(3).index
+    top_categories_data = df[df['Category'].isin(top_categories)]
+    expenses_by_month_category = top_categories_data.groupby(['Month', 'Category'])['Price'].sum().unstack(fill_value=0)
+
+    plt.figure(figsize=(10, 6))
+    ax = plt.gca()
+    month_names = [calendar.month_name[i] for i in range(1, 13)]
+
+    expenses_by_month_category.plot(kind='line', marker='o', ax=ax)
+    plt.xticks(range(1, 13), month_names)  
+    plt.legend(title='Category', loc='upper right')
+    plt.grid(True)
+    plt.tight_layout()
+
+    plt.savefig('chart/expense_trend_top_categories_by_month.png')
+
+    await update.message.reply_photo(open('chart/expense_by_category_by_year.png', 'rb'), caption="Pie by category (yearly)")
+    await update.message.reply_photo(open('chart/expense_trend_top_categories_by_month.png', 'rb'), caption="Trend top 3 categories (by month)")
+
     return await start(update, context)
 
 async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
