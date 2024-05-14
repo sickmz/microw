@@ -1,11 +1,17 @@
 ## Overview
-This is a telegram bot that interacts with Google Sheets to save expenses based on user input.
+This is a telegram bot that interacts with Google Sheets and allows you to add, delete, make an expense list and show various graphs.
+
+**Next step?**
+- Initial decision screen between Google Sheets and *save data locally* in .csv format with ability to export and share (for those not planning to use gsheet).
+- Creation of budgets with alerts if exceeded.
+
+**Improvements?**
+- Improve the speed of execution for the elimination of an expense
+- Simplify the code and make it more modular 
 
 ## Demo
 
-| Add expense | Delete expense | Summary |
-|:----------------:|:----------------:|:----------------:|
-| <img src="demo/add.gif"  height="400"> | <img src="demo/delete.gif"  height="400"> | <img src="demo/summary.gif"  height="400"> | 
+ <img src="demo/demo.gif"  height="400"> 
 
 ## Installation
 
@@ -85,25 +91,15 @@ WantedBy=multi-user.target
 
 3. Replace the ExecStart and WorkingDirectory paths with the actual paths to your script and project directory.
 
-4. Reload the systemd daemon:
+4. Reload the systemd daemon, enable and start the service:
 
 ```
 sudo systemctl daemon-reload
-```
-
-5. Enable the service:
-
-```
 sudo systemctl enable microw.service
-```
-
-6. Start the service:
-
-```
 sudo systemctl start microw.service
 ```
 
-7. Check the service status:
+4. Check the service status:
 
 ```
 sudo systemctl status microw.service
@@ -112,10 +108,9 @@ sudo systemctl status microw.service
 ## Usage
 
 1. Start a conversation with the bot on Telegram.
-2. Use the /start command to begin tracking an expense.
-3. Follow the bot's prompts to select a category, subcategory, and enter the price.
-4. If you wish to cancel the process at any point, use the /cancel command.
-5. The expense will be recorded in the Google Spreadsheet upon successful entry.
+2. Use the `/start` command to initiate interaction.
+3. Choose an action from the provided options: ✏️ Add, ❌ Delete, 📊 Charts, 📋 List or ❓ Help.
+4. Follow the bot's prompts.
 
 ## Contributing
 
