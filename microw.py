@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import gspread
 import datetime
 import calendar
+from cachetools import TTLCache
+
 
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -19,7 +21,7 @@ from telegram.ext import (
 from dotenv import load_dotenv, dotenv_values
 
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.DEBUG
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.WARN
 )
 
 logger = logging.getLogger(__name__)
@@ -33,6 +35,8 @@ SPREADSHEET_ID = env_vars.get("SPREADSHEET_ID")
 BOT_TOKEN = env_vars.get("BOT_TOKEN")
 EXPENSE_SHEET = env_vars.get("EXPENSE_SHEET")
 USER_ID = env_vars.get("USER_ID")
+
+cache = TTLCache(maxsize=100, ttl=86400)
 
 reply_keyboard = [
     ["✏️ Add", "❌ Delete", "📊 Charts"],
@@ -94,7 +98,7 @@ async def save_on_google_sheet(update: Update, context: ContextTypes.DEFAULT_TYP
         price = float(update.message.text.replace(',', '.'))
         category = context.user_data["selected_category"]
         subcategory = context.user_data["selected_subcategory"]
-        ws = gspread.service_account(filename='credentials.json').open_by_key(SPREADSHEET_ID).worksheet(EXPENSE_SHEET)
+        ws = get_worksheet(SPREADSHEET_ID, EXPENSE_SHEET)
         ws.append_row([datetime.datetime.now().strftime("%B"), category, subcategory, price, datetime.datetime.now().strftime('%d/%m/%Y')])
 
     except ValueError:
@@ -111,7 +115,7 @@ async def save_on_google_sheet(update: Update, context: ContextTypes.DEFAULT_TYP
     return await start(update, context)
 
 async def ask_deleting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    ws = gspread.service_account(filename='credentials.json').open_by_key(SPREADSHEET_ID).worksheet(EXPENSE_SHEET)
+    ws = get_worksheet(SPREADSHEET_ID, EXPENSE_SHEET)
     num_rows = len(ws.col_values(1))
     rows_to_display = min(num_rows, 5)
 
@@ -133,7 +137,7 @@ async def ask_deleting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 async def delete_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     selected_id = int(update.callback_query.data)
-    ws = gspread.service_account(filename='credentials.json').open_by_key(SPREADSHEET_ID).worksheet(EXPENSE_SHEET)
+    ws = get_worksheet(SPREADSHEET_ID, EXPENSE_SHEET)
     try:
         ws.delete_rows(selected_id)
         await update.callback_query.message.edit_text("Expense deleted successfully. ✅")
@@ -143,7 +147,7 @@ async def delete_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     return await start(update, context)
 
 async def make_charts(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    ws = gspread.service_account(filename='credentials.json').open_by_key(SPREADSHEET_ID).worksheet(EXPENSE_SHEET)
+    ws = get_worksheet(SPREADSHEET_ID, EXPENSE_SHEET)
     values = ws.get_all_values()
     df = pd.DataFrame(values[1:], columns=values[0])
     df['Price'] = df['Price'].str.replace(',', '.').astype(float)
@@ -200,7 +204,7 @@ async def make_charts(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     return await start(update, context)
 
 async def make_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    ws = gspread.service_account(filename='credentials.json').open_by_key(SPREADSHEET_ID).worksheet(EXPENSE_SHEET)
+    ws = get_worksheet(SPREADSHEET_ID, EXPENSE_SHEET)
     values = ws.get_all_values()
     df = pd.DataFrame(values[1:], columns=values[0])
     df['Price'] = df['Price'].str.replace(',', '.').astype(float)
@@ -254,6 +258,13 @@ async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data.clear()
 
     return await start(update, context)
+
+def get_worksheet(spreadsheet_id, worksheet_name):
+    key = f"{spreadsheet_id}:{worksheet_name}"
+    if key not in cache:
+        gc = gspread.service_account(filename='credentials.json')
+        cache[key] = gc.open_by_key(spreadsheet_id).worksheet(worksheet_name)
+    return cache[key]
 
 def main() -> None:
     application = Application.builder().token(BOT_TOKEN).build()
