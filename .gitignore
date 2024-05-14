@@ -3,4 +3,3 @@ personalenv/
 .env
 __pycache__
 microw_personal.py
-chart/*
