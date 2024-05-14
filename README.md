@@ -11,7 +11,9 @@ This is a telegram bot that interacts with Google Sheets and allows you to add, 
 
 ## Demo
 
- <img src="demo/demo.gif"  height="400"> 
+<div align="center">
+  <video src="https://github.com/sickmz/microw/assets/24682196/b5d01ef7-ee9c-47ed-aa89-61f4d3e39009" width="400" />
+</div>
 
 ## Installation
 
