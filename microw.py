@@ -123,54 +123,63 @@ async def delete_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     return await start(update, context)
 
-# Send expense charts
 async def make_charts(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     ws = get_worksheet(SPREADSHEET_ID, EXPENSE_SHEET)
     values = ws.get_all_values()
     df = pd.DataFrame(values[1:], columns=values[0])
     df['Price'] = df['Price'].str.replace(',', '.').astype(float)
-
-    # Expense by category (yearly)
-    expenses_by_category = df.groupby('Category')['Price'].sum().reset_index()
-    plt.figure(figsize=(10, 6))
-    pie = plt.pie(expenses_by_category['Price'], autopct=lambda p: f'{p:.1f}% ({p*sum(expenses_by_category["Price"])/100:.2f} €)' if p > 5 else '', startangle=90)
-    plt.legend(pie[0], expenses_by_category['Category'], loc="best")
-    plt.axis('equal')
-    plt.savefig('charts/expense_by_category_by_year.png')
-
-    # Trend top 3 categories (monthly)
-    top_categories = df.groupby('Category')['Price'].sum().nlargest(3).index
-    top_categories_data = df[df['Category'].isin(top_categories)]
-    expenses_by_month_category = top_categories_data.groupby(['Month', 'Category'])['Price'].sum().unstack(fill_value=0)
-    plt.figure(figsize=(10, 6))
-    month_names = [calendar.month_name[i] for i in range(1, 13)]
-    expenses_by_month_category.plot(kind='line', marker='o')
-    plt.xticks(range(1, 13), month_names, rotation=45, ha='right')
-    plt.legend(title='Category', loc='upper right')
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig('charts/expense_trend_top_categories_by_month.png')
-
-    # Monthly expenses by category (stacked bar chart)
     df['Date'] = pd.to_datetime(df['Date'], format='%d/%m/%Y')
-    df['Month'] = df['Date'].dt.to_period('M')
-    monthly_expenses = df.groupby(['Month', 'Category'])['Price'].sum().unstack().fillna(0)
-    plt.figure(figsize=(12, 8))
-    populated_monthly_expenses = monthly_expenses.loc[(monthly_expenses.sum(axis=1) != 0)]
-    populated_monthly_expenses.plot(kind='bar', stacked=True, width=0.8)
-    plt.xticks(range(1, 13), month_names, rotation=45, ha='right')
-    plt.legend(loc='upper right')
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig('charts/monthly_expenses_by_category.png')
-    plt.close()
+    
+    await save_pie_chart(df, 'charts/expense_by_category_by_year.png')
+    await save_trend_chart(df, 'charts/expense_trend_top_categories_by_month.png')
+    await save_stacked_bar_chart(df, 'charts/monthly_expenses_by_category.png')
 
-    # Send charts to user
     await update.message.reply_photo(open('charts/expense_by_category_by_year.png', 'rb'), caption="Expense by category (yearly)")
     await update.message.reply_photo(open('charts/monthly_expenses_by_category.png', 'rb'), caption="Expense by category (monthly)")
     await update.message.reply_photo(open('charts/expense_trend_top_categories_by_month.png', 'rb'), caption="Trend top 3 categories (monthly)")
 
     return await start(update, context)
+
+async def save_pie_chart(df, filename):
+    expenses_by_category = df.groupby('Category')['Price'].sum().reset_index()
+    plt.figure(figsize=(10, 6))
+    pie = plt.pie(expenses_by_category['Price'], autopct=lambda p: f'{p:.1f}% ({p*sum(expenses_by_category["Price"])/100:.2f} €)' if p > 5 else '', startangle=90)
+    plt.legend(pie[0], expenses_by_category['Category'], loc="best")
+    plt.axis('equal')
+    plt.savefig(filename)
+    plt.close()
+
+async def save_trend_chart(df, filename):
+    df['Month'] = df['Date'].dt.month
+    top_categories = df.groupby('Category')['Price'].sum().nlargest(3).index
+    top_categories_data = df[df['Category'].isin(top_categories)]
+    expenses_by_month_category = top_categories_data.groupby(['Month', 'Category'])['Price'].sum().unstack(fill_value=0)
+    plt.figure(figsize=(10, 6))
+    month_names = [calendar.month_name[i] for i in range(1, 13)]
+    ax = expenses_by_month_category.plot(kind='line', marker='o', ax=plt.gca())
+    ax.set_xticks(range(1, 13))
+    ax.set_xticklabels(month_names, rotation=45, ha='right')
+    ax.set_xlabel('') 
+    plt.legend(title='Category', loc='upper right')
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(filename)
+    plt.close()
+
+async def save_stacked_bar_chart(df, filename):
+    df['Month'] = df['Date'].dt.strftime('%B')
+    monthly_expenses = df.groupby(['Month', 'Category'])['Price'].sum().unstack().fillna(0)
+    months_order = list(calendar.month_name[1:])
+    monthly_expenses = monthly_expenses.reindex(months_order)
+    plt.figure(figsize=(12, 8))
+    ax = monthly_expenses.plot(kind='bar', stacked=True, width=0.8, zorder=3)
+    ax.set_xticklabels(months_order, rotation=45, ha='right')
+    ax.set_xlabel('') 
+    plt.legend(loc='upper right')
+    plt.grid(True, zorder=0)
+    plt.tight_layout()
+    plt.savefig(filename)
+    plt.close()
 
 # List of expenses
 async def make_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
