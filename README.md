@@ -12,7 +12,7 @@ This is a telegram bot that interacts with Google Sheets and allows you to add, 
 ## Demo
 
 <div align="center">
-  <video src="https://github.com/sickmz/microw/assets/24682196/b5d01ef7-ee9c-47ed-aa89-61f4d3e39009" width="400" />
+  <video src="https://github.com/sickmz/microw/assets/24682196/3513e73a-a7ca-4a0f-ba3c-86717581effb" width="400" />
 </div>
 
 ## Installation
