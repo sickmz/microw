@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import gspread
 import datetime
 import calendar
+import seaborn as sns
 from cachetools import TTLCache
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes, ConversationHandler, MessageHandler, CallbackQueryHandler, filters
@@ -26,7 +27,7 @@ USER_ID = env_vars.get("USER_ID")
 cache = TTLCache(maxsize=100, ttl=86400)
 
 # Constants for conversation steps
-CHOOSING, CHOOSING_CATEGORY, CHOOSING_SUBCATEGORY, CHOOSING_PRICE, CHOOSING_ITEM_TO_DELETE = range(5)
+CHOOSING, CHOOSING_CATEGORY, CHOOSING_SUBCATEGORY, CHOOSING_PRICE, CHOOSING_ITEM_TO_DELETE, CHOOSING_CHART = range(6)
 
 # Define reply keyboard
 reply_keyboard = [
@@ -124,6 +125,16 @@ async def delete_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     return await start(update, context)
 
 async def make_charts(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    chart_buttons = [
+        [InlineKeyboardButton("Expense by category (yearly)", callback_data="chart_yearly")],
+        [InlineKeyboardButton("Expense by category (monthly)", callback_data="chart_monthly")],
+        [InlineKeyboardButton("Trend top 3 categories (monthly)", callback_data="chart_trend")],
+        [InlineKeyboardButton("Heatmap expense intensity (monthly)", callback_data="chart_heatmap")]
+    ]
+    await update.message.reply_text("Select a chart to view:", reply_markup=InlineKeyboardMarkup(chart_buttons))
+
+    return CHOOSING_CHART
+async def show_yearly_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     ws = get_worksheet(SPREADSHEET_ID, EXPENSE_SHEET)
     values = ws.get_all_values()
     df = pd.DataFrame(values[1:], columns=values[0])
@@ -131,12 +142,7 @@ async def make_charts(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     df['Date'] = pd.to_datetime(df['Date'], format='%d/%m/%Y')
     
     await save_pie_chart(df, 'charts/expense_by_category_by_year.png')
-    await save_trend_chart(df, 'charts/expense_trend_top_categories_by_month.png')
-    await save_stacked_bar_chart(df, 'charts/monthly_expenses_by_category.png')
-
-    await update.message.reply_photo(open('charts/expense_by_category_by_year.png', 'rb'), caption="Expense by category (yearly)")
-    await update.message.reply_photo(open('charts/monthly_expenses_by_category.png', 'rb'), caption="Expense by category (monthly)")
-    await update.message.reply_photo(open('charts/expense_trend_top_categories_by_month.png', 'rb'), caption="Trend top 3 categories (monthly)")
+    await update.callback_query.message.reply_photo(open('charts/expense_by_category_by_year.png', 'rb'), caption="Expense by category (yearly)")
 
     return await start(update, context)
 
@@ -148,6 +154,30 @@ async def save_pie_chart(df, filename):
     plt.axis('equal')
     plt.savefig(filename)
     plt.close()
+
+async def show_trend_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    ws = get_worksheet(SPREADSHEET_ID, EXPENSE_SHEET)
+    values = ws.get_all_values()
+    df = pd.DataFrame(values[1:], columns=values[0])
+    df['Price'] = df['Price'].str.replace(',', '.').astype(float)
+    df['Date'] = pd.to_datetime(df['Date'], format='%d/%m/%Y')
+
+    await save_trend_chart(df, 'charts/expense_trend_top_categories_by_month.png')
+    await update.callback_query.message.reply_photo(open('charts/expense_trend_top_categories_by_month.png', 'rb'), caption="Trend top 3 categories (monthly)")
+
+    return await start(update, context)
+
+async def show_monthly_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    ws = get_worksheet(SPREADSHEET_ID, EXPENSE_SHEET)
+    values = ws.get_all_values()
+    df = pd.DataFrame(values[1:], columns=values[0])
+    df['Price'] = df['Price'].str.replace(',', '.').astype(float)
+    df['Date'] = pd.to_datetime(df['Date'], format='%d/%m/%Y')
+
+    await save_stacked_bar_chart(df, 'charts/monthly_expenses_by_category.png')
+    await update.callback_query.message.reply_photo(open('charts/monthly_expenses_by_category.png', 'rb'), caption="Expense by category (monthly)")
+
+    return await start(update, context)
 
 async def save_trend_chart(df, filename):
     df['Month'] = df['Date'].dt.month
@@ -181,6 +211,29 @@ async def save_stacked_bar_chart(df, filename):
     plt.savefig(filename)
     plt.close()
 
+async def show_heatmap_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    ws = get_worksheet(SPREADSHEET_ID, EXPENSE_SHEET)
+    values = ws.get_all_values()
+    df = pd.DataFrame(values[1:], columns=values[0])
+    df['Price'] = df['Price'].str.replace(',', '.').astype(float)
+    df['Date'] = pd.to_datetime(df['Date'], format='%d/%m/%Y')
+
+    await save_heatmap(df, 'charts/heatmap_expense_intensity.png')
+    await update.callback_query.message.reply_photo(open('charts/heatmap_expense_intensity.png', 'rb'), caption="Heatmap of expense intensity (monthly)")
+
+    return await start(update, context)
+
+async def save_heatmap(df, filename):
+    df['Month'] = df['Date'].dt.strftime('%B')
+    heatmap_data = df.pivot_table(values='Price', index='Category', columns='Month', aggfunc='sum', fill_value=0)
+    existing_months = [month for month in calendar.month_name[1:] if month in heatmap_data.columns]
+    heatmap_data = heatmap_data[existing_months]
+    plt.figure(figsize=(12, 8))
+    sns.heatmap(heatmap_data, fmt=".2f", annot=True, cmap="YlGnBu")
+    plt.tight_layout()
+    plt.savefig(filename)
+    plt.close()
+
 # List of expenses
 async def make_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     ws = get_worksheet(SPREADSHEET_ID, EXPENSE_SHEET)
@@ -191,7 +244,6 @@ async def make_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     current_year = datetime.datetime.now().year
     df_current_year = df[df['Date'].dt.year == current_year]
 
-    # Summarize expenses
     message = ""
     grouped = df_current_year.groupby([df_current_year['Date'].dt.month, 'Category'])['Price'].sum()
     total_per_month = df_current_year.groupby(df_current_year['Date'].dt.month)['Price'].sum()
@@ -259,6 +311,12 @@ def main() -> None:
             CHOOSING_ITEM_TO_DELETE: [
                 CallbackQueryHandler(delete_expense), 
                 MessageHandler(filters.Regex("^(✏️ Add|📊 Charts|📋 List|❓ Help)$"), invalid_transition)],
+            CHOOSING_CHART: [
+                CallbackQueryHandler(show_yearly_chart, pattern="^chart_yearly$"),
+                CallbackQueryHandler(show_monthly_chart, pattern="^chart_monthly$"),
+                CallbackQueryHandler(show_trend_chart, pattern="^chart_trend$"),
+                CallbackQueryHandler(show_heatmap_chart, pattern="^chart_heatmap$"),
+                MessageHandler(filters.Regex("^(✏️ Add|❌ Delete|📋 List|❓ Help)$"), invalid_transition)],         
         },
         fallbacks=[MessageHandler(filters.Regex("^🔄 Reset$"), fallback)],
     )
