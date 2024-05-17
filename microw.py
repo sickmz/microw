@@ -99,29 +99,68 @@ async def save_on_google_sheet(update: Update, context: ContextTypes.DEFAULT_TYP
 
     return await start(update, context)
 
-# Deleting an expense
+# Pagination
+ITEMS_PER_PAGE = 5
+
+# Starting process for deleting an expense
 async def ask_deleting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if 'current_page' not in context.user_data:
+        context.user_data['current_page'] = 0
+    
+    return await show_expenses(update, context)
+
+# Display expenses with navigation button
+async def show_expenses(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     ws = get_worksheet(SPREADSHEET_ID, EXPENSE_SHEET)
     num_rows = len(ws.col_values(1))
-    rows_to_display = min(num_rows, 5)
-    last_rows = ws.get(f"A{num_rows - rows_to_display + 1}:E{num_rows}")
-    row_indices = list(range(num_rows - rows_to_display + 1, num_rows + 1))
-    combined_data = [[str(index)] + row for index, row in zip(row_indices, last_rows)]
-    expense_options = [[InlineKeyboardButton(f"🗑️ {data[2]}/{data[3]}: {data[4]} €", callback_data=str(data[0]))] for data in combined_data]
-    await update.message.reply_text("Choose an expense to delete:", reply_markup=InlineKeyboardMarkup(expense_options))
+    current_page = context.user_data['current_page']
+    
+    start_index = max(num_rows - (current_page + 1) * ITEMS_PER_PAGE, 0) + 1
+    end_index = min(num_rows - current_page * ITEMS_PER_PAGE, num_rows)
+    
+    expenses = ws.get(f"A{start_index}:E{end_index}")
+    expense_buttons = [[InlineKeyboardButton(f"🗑️ ({row[4]}) {row[2]}: {row[3]} €", callback_data=f"delete_{start_index + i}")] for i, row in enumerate(expenses)]
+    
+    navigation_buttons = []
+    if  start_index >= 0:
+        navigation_buttons.append(InlineKeyboardButton("⬅️ Previous", callback_data="previous"))
+    if current_page > 0:  
+        navigation_buttons.append(InlineKeyboardButton("➡️ Next", callback_data="next"))
+    
+    all_buttons = expense_buttons + [navigation_buttons] if navigation_buttons else expense_buttons
+    
+    if hasattr(update, 'callback_query') and update.callback_query:
+        await update.callback_query.message.edit_text("Choose an expense to delete:", reply_markup=InlineKeyboardMarkup(all_buttons))
+        await update.callback_query.answer()
+    else:
+        await update.message.reply_text("Choose an expense to delete:", reply_markup=InlineKeyboardMarkup(all_buttons))
 
     return CHOOSING_ITEM_TO_DELETE
 
-# Delete expense from Google Sheet
-async def delete_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    selected_id = int(update.callback_query.data)
+# Handle navigation and deletion
+async def handle_navigation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query_data = update.callback_query.data
+    
+    if query_data.startswith("delete_"):
+        expense_id = int(query_data.split("_")[1])
+        return await delete_expense(update, context, expense_id)
+    elif query_data == "previous":
+        context.user_data['current_page'] += 1
+    elif query_data == "next":
+        context.user_data['current_page'] -= 1
+    
+    return await show_expenses(update, context)
+
+# Deleting an expense
+async def delete_expense(update: Update, context: ContextTypes.DEFAULT_TYPE, expense_id: int) -> int:
     ws = get_worksheet(SPREADSHEET_ID, EXPENSE_SHEET)
     try:
-        ws.delete_rows(selected_id)
+        ws.delete_rows(expense_id)
+        context.user_data['current_page'] = 0
         await update.callback_query.message.edit_text("Expense deleted successfully. ✅")
-    except gspread.exceptions.APIError:
-        await update.callback_query.message.reply_text("An error occurred. Please try again.")
-
+    except Exception as e:
+        await update.callback_query.reply_text(f"Error deleting expense: {e}", show_alert=True)
+    
     return await start(update, context)
 
 async def make_charts(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -309,7 +348,7 @@ def main() -> None:
                 MessageHandler(filters.TEXT & ~filters.COMMAND, save_on_google_sheet), 
                 MessageHandler(filters.Regex("^(❌ Delete|📊 Charts|📋 List|❓ Help)$"), invalid_transition)],
             CHOOSING_ITEM_TO_DELETE: [
-                CallbackQueryHandler(delete_expense), 
+                CallbackQueryHandler(handle_navigation),
                 MessageHandler(filters.Regex("^(✏️ Add|📊 Charts|📋 List|❓ Help)$"), invalid_transition)],
             CHOOSING_CHART: [
                 CallbackQueryHandler(show_yearly_chart, pattern="^chart_yearly$"),
