@@ -9,6 +9,14 @@ This is a telegram bot that interacts with Google Sheets and allows you to add, 
 - Improve the speed of execution for the elimination of an expense
 - Simplify the code and make it more modular 
 
+## Feature
+- `Add` expense with two dependent lists, category and subcategory.
+- `Delete` expense with pagination to go back through older expenses.
+- `Charts` of four types: yearly and monthly breakdowns, trends, and heatmaps.
+- `List` to displays a summary of expenses for the current year.
+- `Reset` the conversation with the bot.
+- `Help` command to information on available commands.
+
 ## Demo
 
 <div align="center">
