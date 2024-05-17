@@ -4,3 +4,4 @@ python-telegram-bot==21.1.1
 matplotlib==3.8.4
 pandas==2.2.2
 cachetools==5.3.3
+seaborn==0.13.2
