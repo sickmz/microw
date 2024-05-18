@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://github.com/sickmz/microw/assets/24682196/1c0d313c-f403-488b-ba8d-7c6594c8eefb" alt="microw" width="200"/></center>
+</p>
+
 ## Overview
 This is a telegram bot that interacts with Google Sheets and allows you to add, delete, make an expense list and show various graphs.
 
