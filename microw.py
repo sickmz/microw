@@ -1,27 +1,32 @@
 import logging
 import os
+import json
 import pandas as pd
 import matplotlib.pyplot as plt
-import gspread
 import datetime
 import calendar
+import time
+from apscheduler.schedulers.background import BackgroundScheduler
+import gspread
 import seaborn as sns
 from cachetools import TTLCache
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes, ConversationHandler, MessageHandler, CallbackQueryHandler, filters
 from dotenv import load_dotenv, dotenv_values
+from openpyxl import load_workbook, Workbook
 
 # Configure logging
-logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.WARN)
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
 env_vars = dotenv_values()
-SPREADSHEET_ID = env_vars.get("SPREADSHEET_ID")
 BOT_TOKEN = env_vars.get("BOT_TOKEN")
-EXPENSE_SHEET = env_vars.get("EXPENSE_SHEET")
 USER_ID = env_vars.get("USER_ID")
+SPREADSHEET_ID = env_vars.get("SPREADSHEET_ID")
+EXPENSE_SHEET = env_vars.get("EXPENSE_SHEET")
+LOCAL_EXPENSE_PATH = env_vars.get("LOCAL_EXPENSE_PATH")
 
 # Set up cache
 cache = TTLCache(maxsize=100, ttl=86400)
@@ -32,7 +37,7 @@ CHOOSING, CHOOSING_CATEGORY, CHOOSING_SUBCATEGORY, CHOOSING_PRICE, CHOOSING_ITEM
 # Define reply keyboard
 reply_keyboard = [
     ["✏️ Add", "❌ Delete", "📊 Charts"],
-    ["📋 List", "🔄 Reset", "❓ Help"],
+    ["📋 List", "🔄 Reset", "⚙️ Settings"],
 ]
 markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
 
@@ -47,13 +52,24 @@ categories = {
 def build_keyboard(options: list) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([[InlineKeyboardButton(option, callback_data=option)] for option in options])
 
-# Get Google Sheet worksheet
-def get_worksheet(spreadsheet_id, worksheet_name):
-    key = f"{spreadsheet_id}:{worksheet_name}"
-    if key not in cache:
-        gc = gspread.service_account(filename='credentials.json')
-        cache[key] = gc.open_by_key(spreadsheet_id).worksheet(worksheet_name)
+# Ensure the spreadsheet directory and file exist
+def ensure_spreadsheet_path(file_path):
+    if not os.path.exists(os.path.dirname(file_path)):
+        os.makedirs(os.path.dirname(file_path))
+    if not os.path.exists(file_path):
+        wb = Workbook()
+        ws = wb.active
+        ws.append(["Month", "Category", "Subcategory", "Price", "Date", "Timestamp"])
+        wb.save(file_path)
 
+# Load or initialize workbook/worksheet
+def get_workbook_and_sheet(file_path):
+    key = f"local:{file_path}"
+    if key not in cache:
+        ensure_spreadsheet_path(file_path)
+        wb = load_workbook(file_path)
+        ws = wb.active
+        cache[key] = (wb, ws)
     return cache[key]
 
 # Start command handler
@@ -62,41 +78,40 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await update.message.reply_text("You're not authorized. ⛔")
         return ConversationHandler.END
     await update.effective_message.reply_text("Hi! I'm microw. What can I do for you?", reply_markup=markup)
-
     return CHOOSING
 
 # Ask for category
 async def ask_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("Select a category:", reply_markup=build_keyboard(categories.keys()))
-
     return CHOOSING_CATEGORY
 
 # Ask for subcategory
 async def ask_subcategory(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['selected_category'] = update.callback_query.data
     await update.callback_query.message.edit_text("Select a subcategory:", reply_markup=build_keyboard(categories[context.user_data['selected_category']]))
-
     return CHOOSING_SUBCATEGORY
 
 # Ask for price
 async def ask_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["selected_subcategory"] = update.callback_query.data
     await update.callback_query.message.edit_text("Enter the price for this item:")
-
     return CHOOSING_PRICE
 
-# Save expense on Google Sheet
-async def save_on_google_sheet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+# Save expense in the local spreadsheet with a timestamp
+async def save_on_local_spreadsheet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     try:
         price = float(update.message.text.replace(',', '.'))
         category = context.user_data["selected_category"]
         subcategory = context.user_data["selected_subcategory"]
-        ws = get_worksheet(SPREADSHEET_ID, EXPENSE_SHEET)
-        ws.append_row([datetime.datetime.now().strftime("%B"), category, subcategory, price, datetime.datetime.now().strftime('%d/%m/%Y')])
+        
+        wb, ws = get_workbook_and_sheet(LOCAL_EXPENSE_PATH)
+
+        record_timestamp = datetime.datetime.now().isoformat()
+        ws.append([datetime.datetime.now().strftime("%B"), category, subcategory, price, datetime.datetime.now().strftime('%d/%m/%Y'), record_timestamp])
+        wb.save(LOCAL_EXPENSE_PATH)
         await update.message.reply_text(f"<b>Expense saved 📌</b>\n\n<b>Category:</b> {category}\n<b>Subcategory:</b> {subcategory}\n<b>Price:</b> {price} €", parse_mode='HTML')
     except ValueError:
         await update.message.reply_text("Please enter a valid price. 🚨")
-
     return await start(update, context)
 
 # Pagination
@@ -106,25 +121,33 @@ ITEMS_PER_PAGE = 5
 async def ask_deleting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if 'current_page' not in context.user_data:
         context.user_data['current_page'] = 0
-    
     return await show_expenses(update, context)
 
 # Display expenses with navigation button
 async def show_expenses(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    ws = get_worksheet(SPREADSHEET_ID, EXPENSE_SHEET)
-    num_rows = len(ws.col_values(1))
+    wb, ws = get_workbook_and_sheet(LOCAL_EXPENSE_PATH)
+    expenses = pd.DataFrame(ws.values)
+    
+    if len(expenses.columns) > 0:
+        expenses.columns = expenses.iloc[0]  
+        expenses = expenses[1:] 
+    
+    num_rows = len(expenses)
     current_page = context.user_data['current_page']
     
-    start_index = max(num_rows - (current_page + 1) * ITEMS_PER_PAGE, 0) + 1
+    start_index = max(num_rows - (current_page + 1) * ITEMS_PER_PAGE, 0)
     end_index = min(num_rows - current_page * ITEMS_PER_PAGE, num_rows)
-    
-    expenses = ws.get(f"A{start_index}:E{end_index}")
-    expense_buttons = [[InlineKeyboardButton(f"🗑️ ({row[4]}) {row[2]}: {row[3]} €", callback_data=f"delete_{start_index + i}")] for i, row in enumerate(expenses)]
-    
+
+    expense_buttons = []
+    for i, (index, row) in enumerate(expenses.iloc[start_index:end_index].iterrows()):
+        expense_buttons.append([InlineKeyboardButton(
+            f"🗑️ ({row['Date']}) {row['Subcategory']}: {row['Price']} €",
+            callback_data=f"delete_{index}")]) 
+
     navigation_buttons = []
-    if  start_index >= 0:
+    if start_index > 0:
         navigation_buttons.append(InlineKeyboardButton("⬅️ Previous", callback_data="previous"))
-    if current_page > 0:  
+    if end_index < num_rows:
         navigation_buttons.append(InlineKeyboardButton("➡️ Next", callback_data="next"))
     
     all_buttons = expense_buttons + [navigation_buttons] if navigation_buttons else expense_buttons
@@ -137,7 +160,6 @@ async def show_expenses(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
     return CHOOSING_ITEM_TO_DELETE
 
-# Handle navigation and deletion
 async def handle_navigation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query_data = update.callback_query.data
     
@@ -153,9 +175,10 @@ async def handle_navigation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 # Deleting an expense
 async def delete_expense(update: Update, context: ContextTypes.DEFAULT_TYPE, expense_id: int) -> int:
-    ws = get_worksheet(SPREADSHEET_ID, EXPENSE_SHEET)
+    wb, ws = get_workbook_and_sheet(LOCAL_EXPENSE_PATH)
     try:
-        ws.delete_rows(expense_id)
+        ws.delete_rows(expense_id + 1)  # Adjust row index for header
+        wb.save(LOCAL_EXPENSE_PATH)
         context.user_data['current_page'] = 0
         await update.callback_query.message.edit_text("Expense deleted successfully. ✅")
     except Exception as e:
@@ -173,11 +196,27 @@ async def make_charts(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     await update.message.reply_text("Select a chart to view:", reply_markup=InlineKeyboardMarkup(chart_buttons))
 
     return CHOOSING_CHART
+
+def ensure_charts_path():
+    if not os.path.exists('charts'):
+        os.makedirs('charts')
+
+def is_expense_file_empty():
+    wb, ws = get_workbook_and_sheet(LOCAL_EXPENSE_PATH)
+    return ws.max_row <= 1
+
 async def show_yearly_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    ws = get_worksheet(SPREADSHEET_ID, EXPENSE_SHEET)
-    values = ws.get_all_values()
-    df = pd.DataFrame(values[1:], columns=values[0])
-    df['Price'] = df['Price'].str.replace(',', '.').astype(float)
+    if is_expense_file_empty():
+        await update.callback_query.message.reply_text("You have not yet registered expenses.")
+        return await start(update, context)
+
+    wb, ws = get_workbook_and_sheet(LOCAL_EXPENSE_PATH)
+    values = pd.DataFrame(ws.values)
+    if len(values.columns) > 0:
+        values.columns = values.iloc[0]
+        values = values[1:]
+    df = pd.DataFrame(values, columns=values.columns)
+    df['Price'] = df['Price'].astype(float)
     df['Date'] = pd.to_datetime(df['Date'], format='%d/%m/%Y')
     
     await save_pie_chart(df, 'charts/expense_by_category_by_year.png')
@@ -185,20 +224,17 @@ async def show_yearly_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     return await start(update, context)
 
-async def save_pie_chart(df, filename):
-    expenses_by_category = df.groupby('Category')['Price'].sum().reset_index()
-    plt.figure(figsize=(10, 6))
-    pie = plt.pie(expenses_by_category['Price'], autopct=lambda p: f'{p:.1f}% ({p*sum(expenses_by_category["Price"])/100:.2f} €)' if p > 5 else '', startangle=90)
-    plt.legend(pie[0], expenses_by_category['Category'], loc="best")
-    plt.axis('equal')
-    plt.savefig(filename)
-    plt.close()
-
 async def show_trend_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    ws = get_worksheet(SPREADSHEET_ID, EXPENSE_SHEET)
-    values = ws.get_all_values()
-    df = pd.DataFrame(values[1:], columns=values[0])
-    df['Price'] = df['Price'].str.replace(',', '.').astype(float)
+    if is_expense_file_empty():
+        await update.callback_query.message.reply_text("You have not yet registered expenses.")
+        return await start(update, context)
+    wb, ws = get_workbook_and_sheet(LOCAL_EXPENSE_PATH)
+    values = pd.DataFrame(ws.values)
+    if len(values.columns) > 0:
+        values.columns = values.iloc[0]
+        values = values[1:]
+    df = pd.DataFrame(values, columns=values.columns)
+    df['Price'] = df['Price'].astype(float)
     df['Date'] = pd.to_datetime(df['Date'], format='%d/%m/%Y')
 
     await save_trend_chart(df, 'charts/expense_trend_top_categories_by_month.png')
@@ -207,10 +243,16 @@ async def show_trend_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     return await start(update, context)
 
 async def show_monthly_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    ws = get_worksheet(SPREADSHEET_ID, EXPENSE_SHEET)
-    values = ws.get_all_values()
-    df = pd.DataFrame(values[1:], columns=values[0])
-    df['Price'] = df['Price'].str.replace(',', '.').astype(float)
+    if is_expense_file_empty():
+        await update.callback_query.message.reply_text("You have not yet registered expenses.")
+        return await start(update, context)
+    wb, ws = get_workbook_and_sheet(LOCAL_EXPENSE_PATH)
+    values = pd.DataFrame(ws.values)
+    if len(values.columns) > 0:
+        values.columns = values.iloc[0]
+        values = values[1:]
+    df = pd.DataFrame(values, columns=values.columns)
+    df['Price'] = df['Price'].astype(float)
     df['Date'] = pd.to_datetime(df['Date'], format='%d/%m/%Y')
 
     await save_stacked_bar_chart(df, 'charts/monthly_expenses_by_category.png')
@@ -218,7 +260,36 @@ async def show_monthly_chart(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     return await start(update, context)
 
+async def show_heatmap_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if is_expense_file_empty():
+        await update.callback_query.message.reply_text("You have not yet registered expenses.")
+        return await start(update, context)
+    wb, ws = get_workbook_and_sheet(LOCAL_EXPENSE_PATH)
+    values = pd.DataFrame(ws.values)
+    if len(values.columns) > 0:
+        values.columns = values.iloc[0]
+        values = values[1:]
+    df = pd.DataFrame(values, columns=values.columns)
+    df['Price'] = df['Price'].astype(float)
+    df['Date'] = pd.to_datetime(df['Date'], format='%d/%m/%Y')
+
+    await save_heatmap(df, 'charts/heatmap_expense_intensity.png')
+    await update.callback_query.message.reply_photo(open('charts/heatmap_expense_intensity.png', 'rb'), caption="Heatmap of expense intensity (monthly)")
+
+    return await start(update, context)
+
+async def save_pie_chart(df, filename):
+    ensure_charts_path()  
+    expenses_by_category = df.groupby('Category')['Price'].sum().reset_index()
+    plt.figure(figsize=(10, 6))
+    pie = plt.pie(expenses_by_category['Price'], autopct=lambda p: f'{p:.1f}% ({p*sum(expenses_by_category["Price"])/100:.2f} €)' if p > 5 else '', startangle=90)
+    plt.legend(pie[0], expenses_by_category['Category'], loc="best")
+    plt.axis('equal')
+    plt.savefig(filename)
+    plt.close()
+
 async def save_trend_chart(df, filename):
+    ensure_charts_path()  
     df['Month'] = df['Date'].dt.month
     top_categories = df.groupby('Category')['Price'].sum().nlargest(3).index
     top_categories_data = df[df['Category'].isin(top_categories)]
@@ -236,6 +307,7 @@ async def save_trend_chart(df, filename):
     plt.close()
 
 async def save_stacked_bar_chart(df, filename):
+    ensure_charts_path()  
     df['Month'] = df['Date'].dt.strftime('%B')
     monthly_expenses = df.groupby(['Month', 'Category'])['Price'].sum().unstack().fillna(0)
     months_order = list(calendar.month_name[1:])
@@ -250,19 +322,8 @@ async def save_stacked_bar_chart(df, filename):
     plt.savefig(filename)
     plt.close()
 
-async def show_heatmap_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    ws = get_worksheet(SPREADSHEET_ID, EXPENSE_SHEET)
-    values = ws.get_all_values()
-    df = pd.DataFrame(values[1:], columns=values[0])
-    df['Price'] = df['Price'].str.replace(',', '.').astype(float)
-    df['Date'] = pd.to_datetime(df['Date'], format='%d/%m/%Y')
-
-    await save_heatmap(df, 'charts/heatmap_expense_intensity.png')
-    await update.callback_query.message.reply_photo(open('charts/heatmap_expense_intensity.png', 'rb'), caption="Heatmap of expense intensity (monthly)")
-
-    return await start(update, context)
-
 async def save_heatmap(df, filename):
+    ensure_charts_path()  
     df['Month'] = df['Date'].dt.strftime('%B')
     heatmap_data = df.pivot_table(values='Price', index='Category', columns='Month', aggfunc='sum', fill_value=0)
     existing_months = [month for month in calendar.month_name[1:] if month in heatmap_data.columns]
@@ -275,10 +336,13 @@ async def save_heatmap(df, filename):
 
 # List of expenses
 async def make_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    ws = get_worksheet(SPREADSHEET_ID, EXPENSE_SHEET)
-    values = ws.get_all_values()
-    df = pd.DataFrame(values[1:], columns=values[0])
-    df['Price'] = df['Price'].str.replace(',', '.').astype(float)
+    wb, ws = get_workbook_and_sheet(LOCAL_EXPENSE_PATH)
+    values = pd.DataFrame(ws.values)
+    if len(values.columns) > 0:
+        values.columns = values.iloc[0]
+        values = values[1:]
+    df = pd.DataFrame(values, columns=values.columns)
+    df['Price'] = df['Price'].astype(float)
     df['Date'] = pd.to_datetime(df['Date'], format='%d/%m/%Y')
     current_year = datetime.datetime.now().year
     df_current_year = df[df['Date'].dt.year == current_year]
@@ -298,22 +362,6 @@ async def make_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     return await start(update, context)
 
-# Help message
-async def ask_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    help_text = (
-        "Available commands:\n\n"
-        "/start: Start the bot.\n\n"
-        "➕ Add: Add a new expense.\n"
-        "❌ Delete: Delete an existing expense.\n"
-        "📊 Charts: View charts of expenses.\n"
-        "📋 List: Displays a summary of expenses.\n"
-        "🔄 Reset: Reset the conversation.\n"
-        "❓ Help: Display this help message."
-    )
-    await update.message.reply_text(help_text)
-
-    return await start(update, context)
-
 # Invalid action handler
 async def invalid_transition(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("Invalid action. One thing at a time..")
@@ -326,6 +374,111 @@ async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     return await start(update, context)
 
+# Load settings with last upload timestamp
+def load_settings():
+    if not os.path.exists('settings.json'):
+        settings = {'google_sync_enabled': False, 'last_upload': None}
+        with open('settings.json', 'w') as f:
+            json.dump(settings, f)
+    else:
+        with open('settings.json', 'r') as f:
+            settings = json.load(f)
+    return settings
+
+def save_settings(settings):
+    with open('settings.json', 'w') as f:
+        json.dump(settings, f)
+
+# Options to enable or disable Google sync
+async def ask_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    settings = load_settings()
+    sync_status = "enabled" if settings.get('google_sync_enabled', False) else "disabled"
+    message = f"Google Sheets synchronization is currently <b>{sync_status}</b>. Choose an action:"
+    
+    settings_keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("Enable Google Sheet sync", callback_data="enable_sync")],
+        [InlineKeyboardButton("Disable Google Sheet sync", callback_data="disable_sync")]
+    ])
+    
+    await update.message.reply_text(message, reply_markup=settings_keyboard, parse_mode='HTML')
+    return CHOOSING
+
+# User choice to enable or disable Google sync
+async def handle_settings_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query_data = update.callback_query.data
+    settings = load_settings()
+    
+    if query_data == "enable_sync":
+        settings['google_sync_enabled'] = True
+        message = "Google Sheets synchronization is now enabled."
+    elif query_data == "disable_sync":
+        settings['google_sync_enabled'] = False
+        message = "Google Sheets synchronization is now disabled."
+    
+    save_settings(settings)
+    
+    await update.callback_query.answer()
+    await update.callback_query.message.edit_text(message)
+    
+    return CHOOSING
+
+
+# Get Google Sheet worksheet
+def get_worksheet(spreadsheet_id, worksheet_name):
+    key = f"{spreadsheet_id}:{worksheet_name}"
+    if key not in cache:
+        gc = gspread.service_account(filename='credentials.json')
+        cache[key] = gc.open_by_key(spreadsheet_id).worksheet(worksheet_name)
+
+    return cache[key]
+
+# Get Google Sheet worksheet
+def get_worksheet(spreadsheet_id, worksheet_name):
+    key = f"{spreadsheet_id}:{worksheet_name}"
+    if key not in cache:
+        gc = gspread.service_account(filename='credentials.json')
+        cache[key] = gc.open_by_key(spreadsheet_id).worksheet(worksheet_name)
+
+    return cache[key]
+
+def sync_to_google_sheets():
+    logger.info("Sync function started")
+    settings = load_settings()
+    if settings.get('google_sync_enabled'):
+        logger.info("Google sync is enabled")
+        wb, ws = get_workbook_and_sheet(LOCAL_EXPENSE_PATH)
+        df = pd.DataFrame(ws.values)
+        if len(df.columns) > 0:
+            df.columns = df.iloc[0]
+            df = df[1:]
+        
+        last_upload = pd.to_datetime(settings.get('last_upload'))
+        new_records = df[pd.to_datetime(df['Timestamp']) > last_upload] if last_upload else df
+        
+        if not new_records.empty:
+            logger.info(f"New records to upload: {len(new_records)}")
+            sheet = get_worksheet(SPREADSHEET_ID, EXPENSE_SHEET)
+            
+            records_to_upload = new_records[['Month', 'Category', 'Subcategory', 'Price', 'Date']].values.tolist()
+            for record in records_to_upload:
+                sheet.append_row(record)
+                logger.info(f"Uploaded record: {record}")
+            
+            new_last_upload = pd.to_datetime(new_records['Timestamp']).max()
+            settings['last_upload'] = new_last_upload.isoformat()
+            save_settings(settings)
+        else:
+            logger.info("No new records to upload")
+    else:
+        logger.info("Google sync is disabled")
+
+# APScheduler to manage background tasks
+def start_scheduler():
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(sync_to_google_sheets, 'interval', minutes=60)
+    scheduler.start()
+    return scheduler
+
 def main() -> None:
     application = Application.builder().token(BOT_TOKEN).build()
     conv_handler = ConversationHandler(
@@ -336,31 +489,35 @@ def main() -> None:
                 MessageHandler(filters.Regex("^❌ Delete$"), ask_deleting),
                 MessageHandler(filters.Regex("^📊 Charts$"), make_charts),
                 MessageHandler(filters.Regex("^📋 List$"), make_list),
-                MessageHandler(filters.Regex("^❓ Help$"), ask_help),
+                MessageHandler(filters.Regex("^⚙️ Settings$"), ask_settings),
+                CallbackQueryHandler(handle_settings_choice, pattern="^(enable_sync|disable_sync)$"),
             ],
             CHOOSING_CATEGORY: [
                 CallbackQueryHandler(ask_subcategory), 
-                MessageHandler(filters.Regex("^(❌ Delete|📊 Charts|📋 List|❓ Help)$"), invalid_transition)],
+                MessageHandler(filters.Regex("^(❌ Delete|📊 Charts|📋 List|⚙️ Settings)$"), invalid_transition)],
             CHOOSING_SUBCATEGORY: [
                 CallbackQueryHandler(ask_price), 
-                MessageHandler(filters.Regex("^(❌ Delete|📊 Charts|📋 List|❓ Help)$"), invalid_transition)],
+                MessageHandler(filters.Regex("^(❌ Delete|📊 Charts|📋 List|⚙️ Settings)$"), invalid_transition)],
             CHOOSING_PRICE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, save_on_google_sheet), 
-                MessageHandler(filters.Regex("^(❌ Delete|📊 Charts|📋 List|❓ Help)$"), invalid_transition)],
+                MessageHandler(filters.TEXT & ~filters.COMMAND, save_on_local_spreadsheet), 
+                MessageHandler(filters.Regex("^(❌ Delete|📊 Charts|📋 List|⚙️ Settings)$"), invalid_transition)],
             CHOOSING_ITEM_TO_DELETE: [
                 CallbackQueryHandler(handle_navigation),
-                MessageHandler(filters.Regex("^(✏️ Add|📊 Charts|📋 List|❓ Help)$"), invalid_transition)],
+                MessageHandler(filters.Regex("^(✏️ Add|📊 Charts|📋 List|⚙️ Settings)$"), invalid_transition)],
             CHOOSING_CHART: [
                 CallbackQueryHandler(show_yearly_chart, pattern="^chart_yearly$"),
                 CallbackQueryHandler(show_monthly_chart, pattern="^chart_monthly$"),
                 CallbackQueryHandler(show_trend_chart, pattern="^chart_trend$"),
                 CallbackQueryHandler(show_heatmap_chart, pattern="^chart_heatmap$"),
-                MessageHandler(filters.Regex("^(✏️ Add|❌ Delete|📋 List|❓ Help)$"), invalid_transition)],         
+                MessageHandler(filters.Regex("^(✏️ Add|❌ Delete|📋 List|⚙️ Settings)$"), invalid_transition)],         
         },
         fallbacks=[MessageHandler(filters.Regex("^🔄 Reset$"), fallback)],
     )
     application.add_handler(conv_handler)
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
+    scheduler = start_scheduler()
+
 if __name__ == "__main__":
+    scheduler = start_scheduler()
     main()
