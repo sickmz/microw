@@ -1,30 +1,31 @@
-<p align="center">
-  <img src="https://github.com/sickmz/microw/assets/24682196/1c0d313c-f403-488b-ba8d-7c6594c8eefb" alt="microw" width="200"/></center>
-</p>
-
 ## Overview
 This is a telegram bot that interacts with Google Sheets and allows you to add, delete, make an expense list and show various graphs.
 
+## What's new?
+- 📝 **Local .xlsx file management**: now by default all saved, deleted expenses, charts and lists are produced locally, under your control.
+- 🌐 **Google Sheets Synchronization**: you can synchronize the last expenses you entered in your local `.xlsx` directly to Google Sheets.
+    - **Automatic Sync**: a background task wakes up every few minutes (configurable) and sync new expenses (if there are any new ones) with your Google Sheets.
+    - **Enable/Disable**: You can enable or disable Google Sheets synchronization via the "⚙️ Settings" command.
+- All operations are now ***extremely faster*** because of the work being done locally. Google's API is very slow, so a batch synchronization of expenses is the best solution to ensure maximum responsiveness.
+   
 **Next step?**
-- Initial decision screen between Google Sheets and *save data locally* in .csv format with ability to export and share (for those not planning to use gsheet).
-- Creation of budgets with alerts if exceeded.
-
-**Improvements?**
-- Improve the speed of execution for the elimination of an expense
-- Simplify the code and make it more modular 
+- [x] ~~Initial decision screen between Google Sheets and *save data locally* in .csv format with ability to export and share (for those not planning to use gsheet).~~
+- [x] ~~Improve the speed of execution for the elimination of an expense~~
+- [ ] Simplify the code and make it more modular
+- [ ] Creation of budgets with alerts if exceeded.
 
 ## Feature
-- `Add` expense with two dependent lists, category and subcategory.
-- `Delete` expense with pagination to go back through older expenses.
-- `Charts` of four types: yearly and monthly breakdowns, trends, and heatmaps.
-- `List` to displays a summary of expenses for the current year.
-- `Reset` the conversation with the bot.
-- `Help` command to information on available commands.
+- `✏️ Add` expense with two dependent lists, category and subcategory.
+- `❌ Delete` expense with pagination to go back through older expenses.
+- `📊 Charts` of four types: yearly and monthly breakdowns, trends, and heatmaps.
+- `📋 List` to displays a summary of expenses for the current year.
+- `🔄 Reset` the conversation with the bot.
+- `⚙️ Settings` show the system settings (currently Google Sheet sync)
 
 ## Demo
 
 <div align="center">
-  <video src="https://github.com/sickmz/microw/assets/24682196/3513e73a-a7ca-4a0f-ba3c-86717581effb" width="400" />
+  <video src="https://github.com/sickmz/microw/assets/24682196/59692629-47bc-46b0-a5d0-fbc904215262" width="400" />
 </div>
 
 ## Installation
@@ -123,7 +124,7 @@ sudo systemctl status microw.service
 
 1. Start a conversation with the bot on Telegram.
 2. Use the `/start` command to initiate interaction.
-3. Choose an action from the provided options: ✏️ Add, ❌ Delete, 📊 Charts, 📋 List or ❓ Help.
+3. Choose an action from the provided options: ✏️ Add, ❌ Delete, 📊 Charts, 📋 List or ⚙️ Settings.
 4. Follow the bot's prompts.
 
 ## Contributing
