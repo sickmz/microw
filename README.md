@@ -75,10 +75,11 @@ touch .env
 2. Open the `.env` file in a text editor and add the following lines, replacing the placeholders with your actual values:
 
 ```
-SPREADSHEET_ID=your_spreadsheet_id
-BOT_TOKEN=your_bot_token
-EXPENSE_SHEET=your_expense_sheet_name
-USER_ID=your_user_id
+SPREADSHEET_ID=your_remote_spreadsheet_id
+BOT_TOKEN=your_telegram_bot_token
+EXPENSE_SHEET=your_remote_expense_sheet_name
+LOCAL_EXPENSE_PATH=your-local-expense-sheet (example: 'spreadsheet/expenses.xlsx')
+USER_ID=your_telegram_user_id
 ```
 
 3. Make sure to add `.env` to your `.gitignore` file to prevent accidental commits.
@@ -127,7 +128,7 @@ sudo systemctl status microw.service
 
 1. Start a conversation with the bot on Telegram.
 2. Use the `/start` command to initiate interaction.
-3. Choose an action from the provided options: ✏️ Add, ❌ Delete, 📊 Charts, 📋 List or ⚙️ Settings.
+3. Choose an action from the provided options: `✏️ Add`, `❌ Delete`, `📊 Charts`, `📋 List` or `⚙️ Settings`.
 4. Follow the bot's prompts.
 
 ## Contributing
