@@ -8,17 +8,20 @@ from config import USER_ID, LOCAL_EXPENSE_PATH, ITEMS_PER_PAGE
 from constants import (
     categories, markup, CHOOSING, CHOOSING_CATEGORY, CHOOSING_SUBCATEGORY,
     CHOOSING_PRICE, CHOOSING_ITEM_TO_DELETE, CHOOSING_CHART
-)
+    )
 from utils import (
     get_workbook_and_sheet, build_keyboard, save_settings,
     load_settings, is_expense_file_empty
-)
+    )
 from charts import (
     save_pie_chart, save_stacked_bar_chart, save_trend_chart, save_heatmap
-)
+    )
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Handle the /start command. Verifies user authorization and presents initial menu.
+    """
     if str(update.effective_user.id) != str(USER_ID):
         await update.message.reply_text("You're not authorized. ⛔")
         return ConversationHandler.END
@@ -30,6 +33,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def ask_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Prompt user to select an expense category.
+    """
     await update.message.reply_text(
         "Select a category:",
         reply_markup=build_keyboard(categories.keys())
@@ -38,6 +44,9 @@ async def ask_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 
 async def ask_subcategory(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Store selected category and prompt user to select a subcategory.
+    """
     context.user_data['selected_category'] = update.callback_query.data
     await update.callback_query.message.reply_text(
         "Select a subcategory:",
@@ -48,6 +57,9 @@ async def ask_subcategory(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def ask_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Store selected subcategory and prompt user to enter the price.
+    """
     context.user_data["selected_subcategory"] = update.callback_query.data
     await update.callback_query.message.reply_text(
         "Enter the price for this item:"
@@ -56,6 +68,9 @@ async def ask_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def save_on_local_spreadsheet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Save the entered expense to the local spreadsheet and provide user feedback.
+    """
     try:
         price = float(update.message.text.replace(',', '.'))
         category = context.user_data["selected_category"]
@@ -80,6 +95,9 @@ async def save_on_local_spreadsheet(update: Update, context: ContextTypes.DEFAUL
 
 
 async def ask_deleting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Prompt user to select an expense to delete if any expenses exist.
+    """
     if is_expense_file_empty():
         await update.message.reply_text(
             "You have not yet registered expenses."
@@ -93,6 +111,9 @@ async def ask_deleting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 
 async def show_expenses(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Display paginated list of expenses for deletion.
+    """
     wb, ws = get_workbook_and_sheet(LOCAL_EXPENSE_PATH)
     expenses = pd.DataFrame(ws.values)
 
@@ -140,6 +161,9 @@ async def show_expenses(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
 
 async def handle_navigation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Handle pagination and deletion in expense management.
+    """
     query_data = update.callback_query.data
 
     if query_data.startswith("delete_"):
@@ -154,6 +178,9 @@ async def handle_navigation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 
 async def delete_expense(update: Update, context: ContextTypes.DEFAULT_TYPE, expense_id: int) -> int:
+    """
+    Delete the specified expense from the spreadsheet and reset pagination.
+    """
     wb, ws = get_workbook_and_sheet(LOCAL_EXPENSE_PATH)
     try:
         ws.delete_rows(expense_id + 1)
@@ -170,6 +197,9 @@ async def delete_expense(update: Update, context: ContextTypes.DEFAULT_TYPE, exp
 
 
 async def make_charts(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Display options for generating different expense charts.
+    """
     chart_buttons = [
         [InlineKeyboardButton("Expense by category (yearly)",
                               callback_data="chart_yearly")],
@@ -188,6 +218,9 @@ async def make_charts(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
 
 async def show_yearly_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Generate and display a yearly pie chart of expenses by category.
+    """
     if is_expense_file_empty():
         await update.callback_query.message.reply_text(
             "You have not yet registered expenses."
@@ -212,6 +245,9 @@ async def show_yearly_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 
 async def show_trend_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Generate and display a trend chart of the top 3 expense categories by month.
+    """
     if is_expense_file_empty():
         await update.callback_query.message.reply_text(
             "You have not yet registered expenses."
@@ -235,6 +271,9 @@ async def show_trend_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 
 async def show_monthly_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Generate and display a monthly stacked bar chart of expenses by category.
+    """
     if is_expense_file_empty():
         await update.callback_query.message.reply_text(
             "You have not yet registered expenses."
@@ -258,6 +297,9 @@ async def show_monthly_chart(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 async def show_heatmap_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Generate and display a heatmap of monthly expense intensity.
+    """
     if is_expense_file_empty():
         await update.callback_query.message.reply_text(
             "You have not yet registered expenses."
@@ -281,6 +323,9 @@ async def show_heatmap_chart(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 async def make_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Generate and send a summary list of expenses for the current year.
+    """
     wb, ws = get_workbook_and_sheet(LOCAL_EXPENSE_PATH)
     values = pd.DataFrame(ws.values)
 
@@ -315,6 +360,9 @@ async def make_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def ask_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Present the current Google Sheets synchronization status and provide options to enable/disable it.
+    """
     settings = load_settings()
     sync_status = "enabled" if settings.get(
         'google_sync_enabled', False) else "disabled"
@@ -336,6 +384,9 @@ async def ask_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 
 async def handle_settings_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Handle the user's choice to enable or disable Google Sheets synchronization.
+    """
     query_data = update.callback_query.data
     settings = load_settings()
 
@@ -354,12 +405,18 @@ async def handle_settings_choice(update: Update, context: ContextTypes.DEFAULT_T
 
 
 async def invalid_transition(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Handle invalid user actions (gracefully).
+    """
     await update.message.reply_text("Invalid action. One thing at a time..")
 
     return CHOOSING
 
 
 async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Clear user data and restart the conversation flow.
+    """
     context.user_data.clear()
 
     return await start(update, context)
