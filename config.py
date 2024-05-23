@@ -8,7 +8,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Load environment variables
+# Load env vars
 load_dotenv()
 env_vars = dotenv_values()
 BOT_TOKEN = env_vars.get("BOT_TOKEN")
