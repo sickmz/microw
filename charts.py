@@ -5,6 +5,9 @@ from utils import ensure_charts_path
 
 
 async def save_pie_chart(df, filename):
+    """
+    Generate and save a pie chart of expenses by category.
+    """
     ensure_charts_path()
     expenses_by_category = df.groupby('Category')['Price'].sum().reset_index()
     plt.figure(figsize=(10, 6))
@@ -23,6 +26,9 @@ async def save_pie_chart(df, filename):
 
 
 async def save_trend_chart(df, filename):
+    """
+    Generate and save a line chart showing the trend of the top 3 expense categories by month.
+    """
     ensure_charts_path()
     df['Month'] = df['Date'].dt.month
     top_categories = df.groupby('Category')['Price'].sum().nlargest(3).index
@@ -43,6 +49,9 @@ async def save_trend_chart(df, filename):
 
 
 async def save_stacked_bar_chart(df, filename):
+    """
+    Generate and save a stacked bar chart of monthly expenses by category.
+    """
     ensure_charts_path()
     df['Month'] = df['Date'].dt.strftime('%B')
     monthly_expenses = df.groupby(['Month', 'Category'])[
@@ -61,6 +70,9 @@ async def save_stacked_bar_chart(df, filename):
 
 
 async def save_heatmap(df, filename):
+    """
+    Generate and save a heatmap of monthly expense intensity by category.
+    """
     ensure_charts_path()
     df['Month'] = df['Date'].dt.strftime('%B')
     heatmap_data = df.pivot_table(
