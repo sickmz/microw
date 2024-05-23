@@ -7,6 +7,10 @@ from config import logger
 from config import LOCAL_EXPENSE_PATH, SPREADSHEET_ID, EXPENSE_SHEET
 
 def sync_to_google_sheets():
+    """
+    Sync local expenses data to Google Sheets if synchronization is enabled.
+    Only uploads new records since the last upload timestamp.
+    """
     logger.info("Sync function started")
     settings = load_settings()
     if settings.get('google_sync_enabled'):
@@ -40,6 +44,9 @@ def sync_to_google_sheets():
         logger.info("Google sync is disabled")
 
 def start_scheduler():
+    """
+    Start the background scheduler to run the sync function at regular intervals.
+    """
     scheduler = BackgroundScheduler()
     scheduler.add_job(sync_to_google_sheets, 'interval', minutes=30)
     scheduler.start()
