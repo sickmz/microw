@@ -1,6 +1,6 @@
 from telegram import ReplyKeyboardMarkup
 
-# Constants for conversation steps
+# Constants to manage the state
 CHOOSING, CHOOSING_CATEGORY, CHOOSING_SUBCATEGORY, \
     CHOOSING_PRICE, CHOOSING_ITEM_TO_DELETE, CHOOSING_CHART = range(6)
 
