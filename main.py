@@ -22,6 +22,10 @@ from sync import start_scheduler
 
 
 def main() -> None:
+    """
+    Main function to start the bot.
+    Initializes the application, sets up conversation handlers, and starts polling.
+    """
     application = Application.builder().token(BOT_TOKEN).build()
 
     conv_handler = ConversationHandler(
