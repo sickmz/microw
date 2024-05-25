@@ -234,6 +234,9 @@ async def save_budget(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     """
     try:
         budget = float(update.message.text.replace(',', '.'))
+        if budget <= 0:
+            raise ValueError("Budget must be greater than 0")
+            
         category = context.user_data['budget_category']
         set_budget(category, budget)
         await update.message.reply_text(
