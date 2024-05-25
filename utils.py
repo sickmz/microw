@@ -175,7 +175,7 @@ async def check_budget(category):
         return
 
     budget, spent = get_budget(category)
-    if spent > budget:
+    if spent > budget & budget > 0:
         message = (f"⚠️ Alert: budget exceeded for {category}.\n"
                f"Budget: {budget} €\nSpent: {spent} €")
         await bot.send_message(chat_id=USER_ID, text=message)
