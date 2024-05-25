@@ -5,9 +5,9 @@ CHOOSING, CHOOSING_CATEGORY, CHOOSING_SUBCATEGORY, \
     CHOOSING_PRICE, CHOOSING_ITEM_TO_DELETE, CHOOSING_CHART, \
         CHOOSING_BUDGET_ACTION, CHOOSING_BUDGET_CATEGORY, CHOOSING_BUDGET_AMOUNT = range(9)
 
-BUDGET_PATH = 'spreadsheet/budget.xlsx'
-EXPENSE_PATH = 'spreadsheet/expenses.xlsx'
-SETTINGS_PATH = 'settings.json'
+BUDGET_PATH = '../spreadsheet/budget.xlsx'
+EXPENSE_PATH = '../spreadsheet/expenses.xlsx'
+SETTINGS_PATH = '../settings.json'
 
 # Define reply keyboard
 reply_keyboard = [
