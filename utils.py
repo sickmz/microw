@@ -1,11 +1,15 @@
 import os
 import json
 from openpyxl import load_workbook, Workbook
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Bot
 import gspread
+
+from config import BOT_TOKEN, USER_ID
 
 from constants import categories
 from constants import BUDGET_PATH, EXPENSE_PATH, SETTINGS_PATH
+
+bot = Bot(token=BOT_TOKEN)
 
 def build_keyboard(options: list) -> InlineKeyboardMarkup:
     """
@@ -146,3 +150,19 @@ def update_spent(category, amount):
             return
     ws.append([category, 0, amount])
     wb.save(BUDGET_PATH)
+
+from telegram import Bot
+from config import BOT_TOKEN, USER_ID
+from utils import get_budget
+
+bot = Bot(token=BOT_TOKEN)
+
+async def check_budget(category):
+    """
+    Notify the user if the spending for the given category exceeds the budget.
+    """
+    budget, spent = get_budget(category)
+    if spent > budget:
+        message = (f"⚠️ Alert: budget exceeded for {category}.\n"
+               f"Budget: {budget} €\nSpent: {spent} €")
+        await bot.send_message(chat_id=USER_ID, text=message)

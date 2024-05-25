@@ -10,7 +10,7 @@ from constants import EXPENSE_PATH
 from constants import CHOOSING, CHOOSING_CATEGORY, CHOOSING_SUBCATEGORY, CHOOSING_PRICE, CHOOSING_ITEM_TO_DELETE, CHOOSING_CHART, CHOOSING_BUDGET_ACTION, CHOOSING_BUDGET_CATEGORY, CHOOSING_BUDGET_AMOUNT
 
 from utils import  build_keyboard, get_workbook_and_sheet, save_settings, load_settings, is_expense_file_empty, get_budget_workbook_and_sheet
-from utils import set_budget, get_budget, update_spent
+from utils import set_budget, get_budget, update_spent, check_budget
 
 from charts import save_pie_chart, save_stacked_bar_chart, save_trend_chart, save_heatmap
     
@@ -86,6 +86,7 @@ async def save_on_local_spreadsheet(update: Update, context: ContextTypes.DEFAUL
             parse_mode='HTML'
         )
         update_spent(category, price)
+        await check_budget(category)
     except ValueError:
         await update.message.reply_text("Please enter a valid price. 🚨")
 
