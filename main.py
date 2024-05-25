@@ -1,22 +1,20 @@
-from telegram.ext import (
-    Application, CommandHandler, MessageHandler,
-    filters, ConversationHandler, CallbackQueryHandler
-)
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ConversationHandler, CallbackQueryHandler
 from telegram import Update
-from handlers import (
-    start, ask_category, ask_subcategory, ask_price,
-    save_on_local_spreadsheet, ask_deleting, handle_navigation,
-    make_charts, make_list, ask_settings,
-    handle_settings_choice, invalid_transition, fallback
-)
-from handlers import (
-    show_yearly_chart, show_monthly_chart,
-    show_trend_chart, show_heatmap_chart
-)
-from constants import (
-    CHOOSING, CHOOSING_CATEGORY, CHOOSING_SUBCATEGORY,
-    CHOOSING_PRICE, CHOOSING_ITEM_TO_DELETE, CHOOSING_CHART
-)
+
+from handlers import start
+from handlers import ask_category, ask_subcategory, ask_price, save_on_local_spreadsheet
+from handlers import ask_deleting, handle_navigation
+from handlers import make_charts, make_list
+from handlers import ask_settings, handle_settings_choice
+from handlers import invalid_transition, fallback
+from handlers import show_yearly_chart, show_monthly_chart, show_trend_chart, show_heatmap_chart
+from handlers import ask_budget_action, ask_budget_category, ask_budget_amount, show_budget, save_budget
+
+from constants import CHOOSING, CHOOSING_CATEGORY, CHOOSING_SUBCATEGORY, CHOOSING_PRICE
+from constants import CHOOSING_ITEM_TO_DELETE
+from constants import CHOOSING_CHART
+from constants import CHOOSING_BUDGET_ACTION, CHOOSING_BUDGET_CATEGORY, CHOOSING_BUDGET_AMOUNT
+
 from config import BOT_TOKEN
 from sync import start_scheduler
 
@@ -36,6 +34,7 @@ def main() -> None:
                 MessageHandler(filters.Regex("^❌ Delete$"), ask_deleting),
                 MessageHandler(filters.Regex("^📊 Charts$"), make_charts),
                 MessageHandler(filters.Regex("^📋 List$"), make_list),
+                MessageHandler(filters.Regex("^💰 Budget$"), ask_budget_action),
                 MessageHandler(filters.Regex("^⚙️ Settings$"), ask_settings),
                 CallbackQueryHandler(
                     handle_settings_choice, pattern="^(enable_sync|disable_sync)$"
@@ -93,11 +92,23 @@ def main() -> None:
                     invalid_transition
                 )
             ],
+            CHOOSING_BUDGET_ACTION: [
+                CallbackQueryHandler(ask_budget_category,
+                                     pattern="^set_budget$"),
+                CallbackQueryHandler(show_budget, pattern="^show_budget$")
+            ],
+            CHOOSING_BUDGET_CATEGORY: [
+                CallbackQueryHandler(ask_budget_amount),
+            ],
+            CHOOSING_BUDGET_AMOUNT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, save_budget)
+            ],
         },
         fallbacks=[
-            MessageHandler(filters.Regex("^🔄 Reset$"), fallback)
+            MessageHandler(filters.Regex("^/cancel$"), fallback)
         ],
     )
+
     application.add_handler(conv_handler)
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 

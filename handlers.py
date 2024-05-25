@@ -1,22 +1,19 @@
 import calendar
 import datetime
-from telegram import Update
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 import pandas as pd
-from config import USER_ID, LOCAL_EXPENSE_PATH, ITEMS_PER_PAGE
-from constants import (
-    categories, markup, CHOOSING, CHOOSING_CATEGORY, CHOOSING_SUBCATEGORY,
-    CHOOSING_PRICE, CHOOSING_ITEM_TO_DELETE, CHOOSING_CHART
-    )
-from utils import (
-    get_workbook_and_sheet, build_keyboard, save_settings,
-    load_settings, is_expense_file_empty
-    )
-from charts import (
-    save_pie_chart, save_stacked_bar_chart, save_trend_chart, save_heatmap
-    )
+from config import USER_ID, ITEMS_PER_PAGE
 
+from constants import categories, markup
+from constants import EXPENSE_PATH
+from constants import CHOOSING, CHOOSING_CATEGORY, CHOOSING_SUBCATEGORY, CHOOSING_PRICE, CHOOSING_ITEM_TO_DELETE, CHOOSING_CHART, CHOOSING_BUDGET_ACTION, CHOOSING_BUDGET_CATEGORY, CHOOSING_BUDGET_AMOUNT
+
+from utils import  build_keyboard, get_workbook_and_sheet, save_settings, load_settings, is_expense_file_empty, get_budget_workbook_and_sheet
+from utils import set_budget, get_budget, update_spent
+
+from charts import save_pie_chart, save_stacked_bar_chart, save_trend_chart, save_heatmap
+    
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
@@ -76,18 +73,19 @@ async def save_on_local_spreadsheet(update: Update, context: ContextTypes.DEFAUL
         category = context.user_data["selected_category"]
         subcategory = context.user_data["selected_subcategory"]
 
-        wb, ws = get_workbook_and_sheet(LOCAL_EXPENSE_PATH)
+        wb, ws = get_workbook_and_sheet(EXPENSE_PATH)
         record_timestamp = datetime.datetime.now().isoformat()
         ws.append([
             datetime.datetime.now().strftime("%B"), category, subcategory,
             price, datetime.datetime.now().strftime('%d/%m/%Y'), record_timestamp
         ])
-        wb.save(LOCAL_EXPENSE_PATH)
+        wb.save(EXPENSE_PATH)
         await update.message.reply_text(
             f"<b>Expense saved 📌</b>\n\n<b>Category:</b> {category}\n"
             f"<b>Subcategory:</b> {subcategory}\n<b>Price:</b> {price} €",
             parse_mode='HTML'
         )
+        update_spent(category, price)
     except ValueError:
         await update.message.reply_text("Please enter a valid price. 🚨")
 
@@ -114,7 +112,7 @@ async def show_expenses(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     """
     Display paginated list of expenses for deletion.
     """
-    wb, ws = get_workbook_and_sheet(LOCAL_EXPENSE_PATH)
+    wb, ws = get_workbook_and_sheet(EXPENSE_PATH)
     expenses = pd.DataFrame(ws.values)
 
     if len(expenses.columns) > 0:
@@ -181,10 +179,10 @@ async def delete_expense(update: Update, context: ContextTypes.DEFAULT_TYPE, exp
     """
     Delete the specified expense from the spreadsheet and reset pagination.
     """
-    wb, ws = get_workbook_and_sheet(LOCAL_EXPENSE_PATH)
+    wb, ws = get_workbook_and_sheet(EXPENSE_PATH)
     try:
         ws.delete_rows(expense_id + 1)
-        wb.save(LOCAL_EXPENSE_PATH)
+        wb.save(EXPENSE_PATH)
         context.user_data['current_page'] = 0
         await update.callback_query.message.edit_text(
             "Expense deleted successfully. ✅")
@@ -196,19 +194,90 @@ async def delete_expense(update: Update, context: ContextTypes.DEFAULT_TYPE, exp
     return await start(update, context)
 
 
+async def ask_budget_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Show budget options: set budget or show budget.
+    """
+    budget_buttons = [
+        [InlineKeyboardButton("Set budget", callback_data="set_budget")],
+        [InlineKeyboardButton("Show budget", callback_data="show_budget")]
+    ]
+    await update.message.reply_text(
+        "Choose an action for budget:",
+        reply_markup=InlineKeyboardMarkup(budget_buttons))
+    return CHOOSING_BUDGET_ACTION
+
+async def ask_budget_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Prompt user to select a category for setting a budget.
+    """
+    await update.callback_query.message.edit_text(
+        "Select a category to set a budget:",
+        reply_markup=build_keyboard(categories.keys())
+    )
+    return CHOOSING_BUDGET_CATEGORY
+
+async def ask_budget_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Store selected category and prompt user to enter the budget amount.
+    """
+    context.user_data['budget_category'] = update.callback_query.data
+    await update.callback_query.message.edit_text(
+        "Enter the budget amount for this category:"
+    )
+    return CHOOSING_BUDGET_AMOUNT
+
+async def save_budget(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Save the entered budget for the selected category.
+    """
+    try:
+        budget = float(update.message.text.replace(',', '.'))
+        category = context.user_data['budget_category']
+        set_budget(category, budget)
+        await update.message.reply_text(
+            f"Budget set for {category}: {budget} €"
+        )
+    except ValueError:
+        await update.message.reply_text("Please enter a valid budget amount. 🚨")
+    return await start(update, context)
+
+
+async def show_budget(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Show all budgets and spent amounts for all categories.
+    """
+    wb, ws = get_budget_workbook_and_sheet()
+    budgets = []
+
+    for row in ws.iter_rows(min_row=2, max_col=3, values_only=True):
+        category, budget, spent = row
+        budgets.append((category, budget, spent))
+
+    if budgets:
+        message = "Here are your budgets:\n\n"
+        for category, budget, spent in budgets:
+            message += f"<b>Category:</b> {category}\n<b>Budget:</b> {budget} €\n<b>Spent:</b> {spent} €\n\n"
+    else:
+        message = "No budgets set."
+
+    await update.callback_query.message.reply_text(message, parse_mode='HTML')
+    return await start(update, context)
+
+
 async def make_charts(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
     Display options for generating different expense charts.
     """
     chart_buttons = [
         [InlineKeyboardButton("Expense by category (yearly)",
-                              callback_data="chart_yearly")],
+        callback_data="chart_yearly")],
         [InlineKeyboardButton("Expense by category (monthly)",
-                              callback_data="chart_monthly")],
+        callback_data="chart_monthly")],
         [InlineKeyboardButton("Trend top 3 categories (monthly)",
-                              callback_data="chart_trend")],
+        callback_data="chart_trend")],
         [InlineKeyboardButton("Heatmap expense intensity (monthly)",
-                              callback_data="chart_heatmap")]
+        callback_data="chart_heatmap")]
     ]
     await update.message.reply_text(
         "Select a chart to view:",
@@ -227,7 +296,7 @@ async def show_yearly_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         )
         return await start(update, context)
 
-    wb, ws = get_workbook_and_sheet(LOCAL_EXPENSE_PATH)
+    wb, ws = get_workbook_and_sheet(EXPENSE_PATH)
     values = pd.DataFrame(ws.values)
     if len(values.columns) > 0:
         values.columns = values.iloc[0]
@@ -253,7 +322,7 @@ async def show_trend_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             "You have not yet registered expenses."
         )
         return await start(update, context)
-    wb, ws = get_workbook_and_sheet(LOCAL_EXPENSE_PATH)
+    wb, ws = get_workbook_and_sheet(EXPENSE_PATH)
     values = pd.DataFrame(ws.values)
     if len(values.columns) > 0:
         values.columns = values.iloc[0]
@@ -279,7 +348,7 @@ async def show_monthly_chart(update: Update, context: ContextTypes.DEFAULT_TYPE)
             "You have not yet registered expenses."
         )
         return await start(update, context)
-    wb, ws = get_workbook_and_sheet(LOCAL_EXPENSE_PATH)
+    wb, ws = get_workbook_and_sheet(EXPENSE_PATH)
     values = pd.DataFrame(ws.values)
     if len(values.columns) > 0:
         values.columns = values.iloc[0]
@@ -305,7 +374,7 @@ async def show_heatmap_chart(update: Update, context: ContextTypes.DEFAULT_TYPE)
             "You have not yet registered expenses."
         )
         return await start(update, context)
-    wb, ws = get_workbook_and_sheet(LOCAL_EXPENSE_PATH)
+    wb, ws = get_workbook_and_sheet(EXPENSE_PATH)
     values = pd.DataFrame(ws.values)
     if len(values.columns) > 0:
         values.columns = values.iloc[0]
@@ -326,7 +395,7 @@ async def make_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
     Generate and send a summary list of expenses for the current year.
     """
-    wb, ws = get_workbook_and_sheet(LOCAL_EXPENSE_PATH)
+    wb, ws = get_workbook_and_sheet(EXPENSE_PATH)
     values = pd.DataFrame(ws.values)
 
     if len(values.columns) > 0:
@@ -366,14 +435,13 @@ async def ask_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     settings = load_settings()
     sync_status = "enabled" if settings.get(
         'google_sync_enabled', False) else "disabled"
-    message = f"Google Sheets synchronization is currently <b>{
-        sync_status}</b>. Choose an action:"
+    message = f"Google Sheets synchronization is currently <b>{sync_status}</b>. Choose an action:"
 
     settings_keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("Enable Google Sheet sync",
-                              callback_data="enable_sync")],
+        callback_data="enable_sync")],
         [InlineKeyboardButton("Disable Google Sheet sync",
-                              callback_data="disable_sync")]
+        callback_data="disable_sync")]
     ])
     await update.message.reply_text(
         message,

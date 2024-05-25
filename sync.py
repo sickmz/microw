@@ -1,10 +1,12 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 import pandas as pd
-from utils import (
-    get_workbook_and_sheet, get_worksheet, save_settings, load_settings
-)
+from utils import get_workbook_and_sheet, get_worksheet, save_settings, load_settings
 from config import logger
-from config import LOCAL_EXPENSE_PATH, SPREADSHEET_ID, EXPENSE_SHEET
+
+from config import SPREADSHEET_ID, EXPENSE_SHEET
+
+from constants import EXPENSE_PATH 
+
 
 def sync_to_google_sheets():
     """
@@ -15,7 +17,7 @@ def sync_to_google_sheets():
     settings = load_settings()
     if settings.get('google_sync_enabled'):
         logger.info("Google sync is enabled")
-        wb, ws = get_workbook_and_sheet(LOCAL_EXPENSE_PATH)
+        wb, ws = get_workbook_and_sheet(EXPENSE_PATH)
         df = pd.DataFrame(ws.values)
         if len(df.columns) > 0:
             df.columns = df.iloc[0]

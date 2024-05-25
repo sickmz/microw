@@ -78,7 +78,6 @@ touch .env
 SPREADSHEET_ID=your_remote_spreadsheet_id
 BOT_TOKEN=your_telegram_bot_token
 EXPENSE_SHEET=your_remote_expense_sheet_name
-LOCAL_EXPENSE_PATH=your-local-expense-sheet (example: 'spreadsheet/expenses.xlsx')
 USER_ID=your_telegram_user_id
 ```
 
