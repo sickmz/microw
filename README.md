@@ -101,7 +101,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/home/$USER/code-server/workspace/microw/venv/bin/python3 microw.py
+ExecStart=/home/$USER/code-server/workspace/microw/venv/bin/python3 main.py
 WorkingDirectory=/home/$USER/code-server/workspace/microw
 
 [Install]
