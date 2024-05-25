@@ -15,7 +15,7 @@ def sync_to_google_sheets():
     """
     logger.info("Sync function started")
     settings = load_settings()
-    if settings.get('google_sync_enabled'):
+    if settings['google_sync']['enabled']:
         logger.info("Google sync is enabled")
         wb, ws = get_workbook_and_sheet(EXPENSE_PATH)
         df = pd.DataFrame(ws.values)

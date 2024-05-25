@@ -434,16 +434,20 @@ async def ask_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     Present the current Google Sheets synchronization status and provide options to enable/disable it.
     """
     settings = load_settings()
-    sync_status = "enabled" if settings.get(
-        'google_sync_enabled', False) else "disabled"
-    message = f"Google Sheets synchronization is currently <b>{sync_status}</b>. Choose an action:"
+    google_sync_status = "enabled" if settings['google_sync']['enabled'] else "disabled"
+    google_sync_button_text = "Disable Google Sheet sync" if google_sync_status == "enabled" else "Enable Google Sheet sync"
+    google_sync_callback_data = "disable_sync" if google_sync_status == "enabled" else "enable_sync"
+
+    budget_notification_status = "enabled" if settings['budget_notifications']['enabled'] else "disabled"
+    budget_notification_button_text = "Disable budget notification" if budget_notification_status == "enabled" else "Enable budget notification"
+    budget_notification_callback_data = "disable_budget_notifications" if budget_notification_status == "enabled" else "enable_budget_notifications"
 
     settings_keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("Enable Google Sheet sync",
-        callback_data="enable_sync")],
-        [InlineKeyboardButton("Disable Google Sheet sync",
-        callback_data="disable_sync")]
+        [InlineKeyboardButton(google_sync_button_text, callback_data=google_sync_callback_data)],
+        [InlineKeyboardButton(budget_notification_button_text, callback_data=budget_notification_callback_data)]
     ])
+    message = (f"- Google Sheets sync is currently <b>{google_sync_status}</b>.\n"
+               f"- Budget notifications are currently <b>{budget_notification_status}</b>.\n")
     await update.message.reply_text(
         message,
         reply_markup=settings_keyboard,
@@ -451,26 +455,32 @@ async def ask_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     )
     return CHOOSING
 
-
 async def handle_settings_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
-    Handle the user's choice to enable or disable Google Sheets synchronization.
+    Handle the user's choice to enable or disable Google Sheets synchronization or budget notifications.
     """
     query_data = update.callback_query.data
     settings = load_settings()
 
     if query_data == "enable_sync":
-        settings['google_sync_enabled'] = True
+        settings['google_sync']['enabled'] = True
         message = "Google Sheets synchronization is now enabled."
     elif query_data == "disable_sync":
-        settings['google_sync_enabled'] = False
+        settings['google_sync']['enabled'] = False
         message = "Google Sheets synchronization is now disabled."
+    elif query_data == "enable_budget_notifications":
+        settings['budget_notifications']['enabled'] = True
+        message = "Budget notifications are now enabled."
+    elif query_data == "disable_budget_notifications":
+        settings['budget_notifications']['enabled'] = False
+        message = "Budget notifications are now disabled."
 
     save_settings(settings)
     await update.callback_query.answer()
     await update.callback_query.message.edit_text(message)
 
     return CHOOSING
+
 
 
 async def invalid_transition(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

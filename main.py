@@ -36,9 +36,7 @@ def main() -> None:
                 MessageHandler(filters.Regex("^📋 List$"), make_list),
                 MessageHandler(filters.Regex("^💰 Budget$"), ask_budget_action),
                 MessageHandler(filters.Regex("^⚙️ Settings$"), ask_settings),
-                CallbackQueryHandler(
-                    handle_settings_choice, pattern="^(enable_sync|disable_sync)$"
-                ),
+                CallbackQueryHandler(handle_settings_choice, pattern="^(enable_sync|disable_sync|enable_budget_notifications|disable_budget_notifications)$")
             ],
             CHOOSING_CATEGORY: [
                 CallbackQueryHandler(ask_subcategory),
