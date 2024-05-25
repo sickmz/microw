@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 import calendar
+
 from utils import ensure_charts_path
 
 
@@ -13,8 +14,7 @@ async def save_pie_chart(df, filename):
     plt.figure(figsize=(10, 6))
     pie = plt.pie(
         expenses_by_category['Price'],
-        autopct=lambda p: f'{
-            p:.1f}% ({p*sum(expenses_by_category["Price"])/100:.2f} €)'
+        autopct=lambda p: f'{p:.1f}% ({p*sum(expenses_by_category["Price"])/100:.2f} €)'
         if p > 5 else '',
         startangle=90
     )
