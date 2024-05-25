@@ -58,13 +58,22 @@ def load_settings():
     """
     Load settings from a JSON file. If the file doesn't exist, create it with default settings.
     """
+    default_settings = {
+        'google_sync': {'enabled': False, 'last_upload': None},
+        'budget_notifications': {'enabled': False}
+    }
     if not os.path.exists(SETTINGS_PATH):
-        settings = {'google_sync_enabled': False, 'last_upload': None}
+        settings = default_settings
         with open(SETTINGS_PATH, 'w') as f:
             json.dump(settings, f)
     else:
         with open(SETTINGS_PATH, 'r') as f:
             settings = json.load(f)
+            if 'google_sync' not in settings:
+                settings['google_sync'] = default_settings['google_sync']
+            if 'budget_notifications' not in settings:
+                settings['budget_notifications'] = default_settings['budget_notifications']
+            save_settings(settings)
     return settings
 
 
@@ -161,6 +170,10 @@ async def check_budget(category):
     """
     Notify the user if the spending for the given category exceeds the budget.
     """
+    settings = load_settings()
+    if not settings['budget_notifications']['enabled']:
+        return
+
     budget, spent = get_budget(category)
     if spent > budget:
         message = (f"⚠️ Alert: budget exceeded for {category}.\n"
