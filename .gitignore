@@ -3,6 +3,5 @@ venv/
 .env
 __pycache__
 release/
-charts/
 settings.json
 spreadsheets/
