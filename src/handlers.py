@@ -3,13 +3,13 @@ import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 import pandas as pd
-from config import USER_ID, ITEMS_PER_PAGE
+from config import TELEGRAM_USER_ID, ITEMS_PER_PAGE
 
 from constants import categories, markup
-from constants import EXPENSE_PATH
-from constants import CHOOSING, CHOOSING_CATEGORY, CHOOSING_SUBCATEGORY, CHOOSING_PRICE, CHOOSING_ITEM_TO_DELETE, CHOOSING_CHART, CHOOSING_BUDGET_ACTION, CHOOSING_BUDGET_CATEGORY, CHOOSING_BUDGET_AMOUNT
+from constants import LOCAL_EXPENSE_PATH, LOCAL_BUDGET_PATH
+from constants import CHOOSING, CHOOSING_CATEGORY, CHOOSING_SUBCATEGORY, CHOOSING_PRICE, CHOOSING_ITEM_TO_DELETE, CHOOSING_CHART, CHOOSING_BUDGET, CHOOSING_BUDGET_CATEGORY, CHOOSING_BUDGET_AMOUNT
 
-from utils import  build_keyboard, get_workbook_and_sheet, save_settings, load_settings, is_expense_file_empty, get_budget_workbook_and_sheet
+from utils import  build_keyboard, get_local_expense_wb, save_settings, load_settings, is_local_expense_file_empty, get_local_budget_wb
 from utils import set_budget, get_budget, update_spent, check_budget
 
 from charts import save_pie_chart, save_stacked_bar_chart, save_trend_chart, save_heatmap
@@ -19,7 +19,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
     Handle the /start command. Verifies user authorization and presents initial menu.
     """
-    if str(update.effective_user.id) != str(USER_ID):
+    if str(update.effective_user.id) != str(TELEGRAM_USER_ID):
         await update.message.reply_text("You're not authorized. ⛔")
         return ConversationHandler.END
     await update.effective_message.reply_text(
@@ -73,13 +73,13 @@ async def save_on_local_spreadsheet(update: Update, context: ContextTypes.DEFAUL
         category = context.user_data["selected_category"]
         subcategory = context.user_data["selected_subcategory"]
 
-        wb, ws = get_workbook_and_sheet(EXPENSE_PATH)
+        wb, ws = get_local_expense_wb()
         record_timestamp = datetime.datetime.now().isoformat()
         ws.append([
             datetime.datetime.now().strftime("%B"), category, subcategory,
             price, datetime.datetime.now().strftime('%d/%m/%Y'), record_timestamp
         ])
-        wb.save(EXPENSE_PATH)
+        wb.save(LOCAL_EXPENSE_PATH)
         await update.message.reply_text(
             f"<b>Expense saved 📌</b>\n\n<b>Category:</b> {category}\n"
             f"<b>Subcategory:</b> {subcategory}\n<b>Price:</b> {price} €",
@@ -97,7 +97,7 @@ async def ask_deleting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     """
     Prompt user to select an expense to delete if any expenses exist.
     """
-    if is_expense_file_empty():
+    if is_local_expense_file_empty():
         await update.message.reply_text(
             "You have not yet registered expenses."
         )
@@ -113,7 +113,7 @@ async def show_expenses(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     """
     Display paginated list of expenses for deletion.
     """
-    wb, ws = get_workbook_and_sheet(EXPENSE_PATH)
+    wb, ws = get_local_expense_wb(LOCAL_EXPENSE_PATH)
     expenses = pd.DataFrame(ws.values)
 
     if len(expenses.columns) > 0:
@@ -180,10 +180,10 @@ async def delete_expense(update: Update, context: ContextTypes.DEFAULT_TYPE, exp
     """
     Delete the specified expense from the spreadsheet and reset pagination.
     """
-    wb, ws = get_workbook_and_sheet(EXPENSE_PATH)
+    wb, ws = get_local_expense_wb(LOCAL_EXPENSE_PATH)
     try:
         ws.delete_rows(expense_id + 1)
-        wb.save(EXPENSE_PATH)
+        wb.save(LOCAL_EXPENSE_PATH)
         context.user_data['current_page'] = 0
         await update.callback_query.message.edit_text(
             "Expense deleted successfully. ✅")
@@ -195,7 +195,7 @@ async def delete_expense(update: Update, context: ContextTypes.DEFAULT_TYPE, exp
     return await start(update, context)
 
 
-async def ask_budget_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def ask_budget(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
     Show budget options: set budget or show budget.
     """
@@ -206,7 +206,8 @@ async def ask_budget_action(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await update.message.reply_text(
         "Choose an action for budget:",
         reply_markup=InlineKeyboardMarkup(budget_buttons))
-    return CHOOSING_BUDGET_ACTION
+    return CHOOSING_BUDGET
+
 
 async def ask_budget_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
@@ -251,7 +252,7 @@ async def show_budget(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     """
     Show all budgets and spent amounts for all categories.
     """
-    wb, ws = get_budget_workbook_and_sheet()
+    wb, ws = get_local_budget_wb()
     budgets = []
 
     for row in ws.iter_rows(min_row=2, max_col=3, values_only=True):
@@ -269,7 +270,7 @@ async def show_budget(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     return await start(update, context)
 
 
-async def make_charts(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def ask_charts(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
     Display options for generating different expense charts.
     """
@@ -294,13 +295,13 @@ async def show_yearly_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     """
     Generate and display a yearly pie chart of expenses by category.
     """
-    if is_expense_file_empty():
+    if is_local_expense_file_empty():
         await update.callback_query.message.reply_text(
             "You have not yet registered expenses."
         )
         return await start(update, context)
 
-    wb, ws = get_workbook_and_sheet(EXPENSE_PATH)
+    wb, ws = get_local_expense_wb(LOCAL_EXPENSE_PATH)
     values = pd.DataFrame(ws.values)
     if len(values.columns) > 0:
         values.columns = values.iloc[0]
@@ -321,12 +322,12 @@ async def show_trend_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     """
     Generate and display a trend chart of the top 3 expense categories by month.
     """
-    if is_expense_file_empty():
+    if is_local_expense_file_empty():
         await update.callback_query.message.reply_text(
             "You have not yet registered expenses."
         )
         return await start(update, context)
-    wb, ws = get_workbook_and_sheet(EXPENSE_PATH)
+    wb, ws = get_local_expense_wb(LOCAL_EXPENSE_PATH)
     values = pd.DataFrame(ws.values)
     if len(values.columns) > 0:
         values.columns = values.iloc[0]
@@ -347,12 +348,12 @@ async def show_monthly_chart(update: Update, context: ContextTypes.DEFAULT_TYPE)
     """
     Generate and display a monthly stacked bar chart of expenses by category.
     """
-    if is_expense_file_empty():
+    if is_local_expense_file_empty():
         await update.callback_query.message.reply_text(
             "You have not yet registered expenses."
         )
         return await start(update, context)
-    wb, ws = get_workbook_and_sheet(EXPENSE_PATH)
+    wb, ws = get_local_expense_wb(LOCAL_EXPENSE_PATH)
     values = pd.DataFrame(ws.values)
     if len(values.columns) > 0:
         values.columns = values.iloc[0]
@@ -373,12 +374,12 @@ async def show_heatmap_chart(update: Update, context: ContextTypes.DEFAULT_TYPE)
     """
     Generate and display a heatmap of monthly expense intensity.
     """
-    if is_expense_file_empty():
+    if is_local_expense_file_empty():
         await update.callback_query.message.reply_text(
             "You have not yet registered expenses."
         )
         return await start(update, context)
-    wb, ws = get_workbook_and_sheet(EXPENSE_PATH)
+    wb, ws = get_local_expense_wb(LOCAL_EXPENSE_PATH)
     values = pd.DataFrame(ws.values)
     if len(values.columns) > 0:
         values.columns = values.iloc[0]
@@ -399,7 +400,7 @@ async def make_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
     Generate and send a summary list of expenses for the current year.
     """
-    wb, ws = get_workbook_and_sheet(EXPENSE_PATH)
+    wb, ws = get_local_expense_wb(LOCAL_EXPENSE_PATH)
     values = pd.DataFrame(ws.values)
 
     if len(values.columns) > 0:

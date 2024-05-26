@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import calendar
 
-from utils import ensure_charts_path
+from utils import ensure_budget_file
 
 
 async def save_pie_chart(df, filename):
