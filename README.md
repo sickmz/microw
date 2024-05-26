@@ -77,10 +77,10 @@ touch .env
 2. Open the `.env` file in a text editor and add the following lines, replacing the placeholders with your actual values:
 
 ```
-SPREADSHEET_ID=your_remote_spreadsheet_id
-BOT_TOKEN=your_telegram_bot_token
-EXPENSE_SHEET=your_remote_expense_sheet_name
-USER_ID=your_telegram_user_id
+TELEGRAM_BOT_TOKEN=your_telegram_token_bot
+TELEGRAM_USER_ID=your_telegram_user_id
+REMOTE_SPREADSHEET_ID=your_remote_remote_spreadsheet_id
+REMOTE_EXPENSE_SHEET=your_remote_expense_sheet_name
 ```
 
 3. Make sure to add `.env` to your `.gitignore` file to prevent accidental commits.
