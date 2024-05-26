@@ -450,8 +450,8 @@ async def ask_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         [InlineKeyboardButton(google_sync_button_text, callback_data=google_sync_callback_data)],
         [InlineKeyboardButton(budget_notification_button_text, callback_data=budget_notification_callback_data)]
     ])
-    message = (f"- Google Sheets sync is currently <b>{google_sync_status}</b>.\n"
-               f"- Budget notifications are currently <b>{budget_notification_status}</b>.\n")
+    message = (f"- Google Sheets sync is currently <u>{google_sync_status}</u>.\n"
+               f"- Budget notifications are currently <u>{budget_notification_status}</u>.\n")
     await update.message.reply_text(
         message,
         reply_markup=settings_keyboard,
@@ -468,13 +468,13 @@ async def handle_settings_choice(update: Update, context: ContextTypes.DEFAULT_T
 
     if query_data == "enable_sync":
         settings['google_sync']['enabled'] = True
-        message = "Google Sheets synchronization is now enabled."
+        message = "Google Sheets synchronization is now enabled (sync happen every 30 minutes)."
     elif query_data == "disable_sync":
         settings['google_sync']['enabled'] = False
         message = "Google Sheets synchronization is now disabled."
     elif query_data == "enable_budget_notifications":
         settings['budget_notifications']['enabled'] = True
-        message = "Budget notifications are now enabled."
+        message = "Budget notifications are now enabled (whenever you exceed the budget)."
     elif query_data == "disable_budget_notifications":
         settings['budget_notifications']['enabled'] = False
         message = "Budget notifications are now disabled."
