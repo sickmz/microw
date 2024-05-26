@@ -1,11 +1,11 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 import pandas as pd
-from utils import get_workbook_and_sheet, get_worksheet, save_settings, load_settings
+from utils import get_local_expense_wb, get_remote_expense_wb, save_settings, load_settings
 from config import logger
 
-from config import SPREADSHEET_ID, EXPENSE_SHEET
+from config import REMOTE_SPREADSHEET_ID, REMOTE_EXPENSE_SHEET
 
-from constants import EXPENSE_PATH 
+from constants import LOCAL_EXPENSE_PATH 
 
 
 def sync_to_google_sheets():
@@ -17,7 +17,7 @@ def sync_to_google_sheets():
     settings = load_settings()
     if settings['google_sync']['enabled']:
         logger.info("Google sync is enabled")
-        wb, ws = get_workbook_and_sheet(EXPENSE_PATH)
+        wb, ws = get_local_expense_wb(LOCAL_EXPENSE_PATH)
         df = pd.DataFrame(ws.values)
         if len(df.columns) > 0:
             df.columns = df.iloc[0]
@@ -29,7 +29,7 @@ def sync_to_google_sheets():
 
         if not new_records.empty:
             logger.info(f"New records to upload: {len(new_records)}")
-            sheet = get_worksheet(SPREADSHEET_ID, EXPENSE_SHEET)
+            sheet = get_remote_expense_wb(REMOTE_SPREADSHEET_ID, REMOTE_EXPENSE_SHEET)
             records_to_upload = new_records[
                 ['Month', 'Category', 'Subcategory', 'Price', 'Date']
             ].values.tolist()
@@ -44,6 +44,7 @@ def sync_to_google_sheets():
             logger.info("No new records to upload")
     else:
         logger.info("Google sync is disabled")
+
 
 def start_scheduler():
     """
