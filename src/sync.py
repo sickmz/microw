@@ -17,7 +17,7 @@ def sync_to_google_sheets():
     settings = load_settings()
     if settings['google_sync']['enabled']:
         logger.info("Google sync is enabled")
-        wb, ws = get_local_expense_wb(LOCAL_EXPENSE_PATH)
+        wb, ws = get_local_expense_wb()
         df = pd.DataFrame(ws.values)
         if len(df.columns) > 0:
             df.columns = df.iloc[0]

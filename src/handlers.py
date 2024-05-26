@@ -113,7 +113,7 @@ async def show_expenses(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     """
     Display paginated list of expenses for deletion.
     """
-    wb, ws = get_local_expense_wb(LOCAL_EXPENSE_PATH)
+    wb, ws = get_local_expense_wb()
     expenses = pd.DataFrame(ws.values)
 
     if len(expenses.columns) > 0:
@@ -180,7 +180,7 @@ async def delete_expense(update: Update, context: ContextTypes.DEFAULT_TYPE, exp
     """
     Delete the specified expense from the spreadsheet and reset pagination.
     """
-    wb, ws = get_local_expense_wb(LOCAL_EXPENSE_PATH)
+    wb, ws = get_local_expense_wb()
     try:
         ws.delete_rows(expense_id + 1)
         wb.save(LOCAL_EXPENSE_PATH)
@@ -301,7 +301,7 @@ async def show_yearly_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         )
         return await start(update, context)
 
-    wb, ws = get_local_expense_wb(LOCAL_EXPENSE_PATH)
+    wb, ws = get_local_expense_wb()
     values = pd.DataFrame(ws.values)
     if len(values.columns) > 0:
         values.columns = values.iloc[0]
@@ -327,7 +327,7 @@ async def show_trend_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             "You have not yet registered expenses."
         )
         return await start(update, context)
-    wb, ws = get_local_expense_wb(LOCAL_EXPENSE_PATH)
+    wb, ws = get_local_expense_wb()
     values = pd.DataFrame(ws.values)
     if len(values.columns) > 0:
         values.columns = values.iloc[0]
@@ -353,7 +353,7 @@ async def show_monthly_chart(update: Update, context: ContextTypes.DEFAULT_TYPE)
             "You have not yet registered expenses."
         )
         return await start(update, context)
-    wb, ws = get_local_expense_wb(LOCAL_EXPENSE_PATH)
+    wb, ws = get_local_expense_wb()
     values = pd.DataFrame(ws.values)
     if len(values.columns) > 0:
         values.columns = values.iloc[0]
@@ -379,7 +379,7 @@ async def show_heatmap_chart(update: Update, context: ContextTypes.DEFAULT_TYPE)
             "You have not yet registered expenses."
         )
         return await start(update, context)
-    wb, ws = get_local_expense_wb(LOCAL_EXPENSE_PATH)
+    wb, ws = get_local_expense_wb()
     values = pd.DataFrame(ws.values)
     if len(values.columns) > 0:
         values.columns = values.iloc[0]
@@ -400,7 +400,7 @@ async def make_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
     Generate and send a summary list of expenses for the current year.
     """
-    wb, ws = get_local_expense_wb(LOCAL_EXPENSE_PATH)
+    wb, ws = get_local_expense_wb()
     values = pd.DataFrame(ws.values)
 
     if len(values.columns) > 0:

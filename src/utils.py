@@ -121,7 +121,7 @@ def is_local_expense_file_empty():
     """
     Check if the local expense file is empty or contains only the header row.
     """
-    wb, ws = get_local_expense_wb(LOCAL_EXPENSE_PATH)
+    wb, ws = get_local_expense_wb()
     return ws.max_row <= 1
 
 
