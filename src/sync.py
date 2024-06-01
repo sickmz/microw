@@ -23,7 +23,7 @@ def sync_to_google_sheets():
             df.columns = df.iloc[0]
             df = df[1:]
 
-        last_upload = pd.to_datetime(settings.get('last_upload'))
+        last_upload = pd.to_datetime(settings['google_sync'].get('last_upload'))
         new_records = df[pd.to_datetime(
             df['Timestamp']) > last_upload] if last_upload else df
 
@@ -38,7 +38,7 @@ def sync_to_google_sheets():
                 logger.info(f"Uploaded record: {record}")
 
             new_last_upload = pd.to_datetime(new_records['Timestamp']).max()
-            settings['last_upload'] = new_last_upload.isoformat()
+            settings['google_sync']['last_upload'] = new_last_upload.isoformat()
             save_settings(settings)
         else:
             logger.info("No new records to upload")
@@ -51,6 +51,6 @@ def start_scheduler():
     Start the background scheduler to run the sync function at regular intervals.
     """
     scheduler = BackgroundScheduler()
-    scheduler.add_job(sync_to_google_sheets, 'interval', minutes=30)
+    scheduler.add_job(sync_to_google_sheets, 'interval', seconds=5)
     scheduler.start()
     return scheduler

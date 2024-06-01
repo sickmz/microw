@@ -11,15 +11,35 @@ from constants import LOCAL_BUDGET_PATH, LOCAL_EXPENSE_PATH, LOCAL_CHART_PATH, L
 
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
-def build_keyboard(options: list) -> InlineKeyboardMarkup:
+def build_keyboard(options: list, max_row_length: int = 20) -> InlineKeyboardMarkup:
     """
     Build an inline keyboard.
-    Each option becomes a button with the same label and callback data.
     """
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton(option, callback_data=option)]
-        for option in options
-    ])
+    if not isinstance(options, list):
+        options = list(options)
+
+    keyboard = []
+    row_buttons = []
+    current_length = 0
+
+    for option in options:
+        if isinstance(option, tuple):
+            text, callback_data = option
+        else:
+            text = callback_data = option
+
+        if current_length + len(text) > max_row_length and row_buttons:
+            keyboard.append(row_buttons)
+            row_buttons = []
+            current_length = 0
+
+        row_buttons.append(InlineKeyboardButton(text, callback_data=callback_data))
+        current_length += len(text) + 1
+
+    if row_buttons:
+        keyboard.append(row_buttons)
+
+    return InlineKeyboardMarkup(keyboard)
 
 
 def load_settings():

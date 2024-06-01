@@ -9,11 +9,11 @@ from constants import categories, markup
 from constants import LOCAL_EXPENSE_PATH, LOCAL_BUDGET_PATH
 from constants import CHOOSING, CHOOSING_CATEGORY, CHOOSING_SUBCATEGORY, CHOOSING_PRICE, CHOOSING_ITEM_TO_DELETE, CHOOSING_CHART, CHOOSING_BUDGET, CHOOSING_BUDGET_CATEGORY, CHOOSING_BUDGET_AMOUNT
 
-from utils import  build_keyboard, get_local_expense_wb, save_settings, load_settings, is_local_expense_file_empty, get_local_budget_wb
+from utils import build_keyboard, get_local_expense_wb, save_settings, load_settings, is_local_expense_file_empty, get_local_budget_wb
 from utils import set_budget, get_budget, update_spent, check_budget
 
 from charts import save_pie_chart, save_stacked_bar_chart, save_trend_chart, save_heatmap
-    
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
@@ -45,7 +45,7 @@ async def ask_subcategory(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     Store selected category and prompt user to select a subcategory.
     """
     context.user_data['selected_category'] = update.callback_query.data
-    await update.callback_query.message.reply_text(
+    await update.callback_query.message.edit_text(
         "Select a subcategory:",
         reply_markup=build_keyboard(
             categories[context.user_data['selected_category']])
@@ -58,9 +58,9 @@ async def ask_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     Store selected subcategory and prompt user to enter the price.
     """
     context.user_data["selected_subcategory"] = update.callback_query.data
-    await update.callback_query.message.reply_text(
+    await update.callback_query.message.edit_text(
         "Enter the price for this item:"
-        )
+    )
     return CHOOSING_PRICE
 
 
@@ -83,14 +83,16 @@ async def save_on_local_spreadsheet(update: Update, context: ContextTypes.DEFAUL
         await update.message.reply_text(
             f"<b>Expense saved 📌</b>\n\n<b>Category:</b> {category}\n"
             f"<b>Subcategory:</b> {subcategory}\n<b>Price:</b> {price} €",
-            parse_mode='HTML'
+            parse_mode='HTML',
+            reply_markup=markup
         )
         update_spent(category, price)
         await check_budget(category)
     except ValueError:
-        await update.message.reply_text("Please enter a valid price. 🚨")
+        await update.message.reply_text("Please enter a valid price. 🚨",
+                                        reply_markup=markup)
 
-    return await start(update, context)
+    return CHOOSING
 
 
 async def ask_deleting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -101,8 +103,8 @@ async def ask_deleting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         await update.message.reply_text(
             "You have not yet registered expenses."
         )
-        return await start(update, context)
-    
+        return CHOOSING
+
     if 'current_page' not in context.user_data:
         context.user_data['current_page'] = 0
 
@@ -129,20 +131,22 @@ async def show_expenses(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     expense_buttons = []
     for i, (index, row) in enumerate(expenses.iloc[start_index:end_index].iterrows()):
         button_text = f"🗑️ ({row['Date']}) {row['Subcategory']}: {row['Price']} €"
-        button = InlineKeyboardButton(button_text, callback_data=f"delete_{index}")
+        button = InlineKeyboardButton(
+            button_text, callback_data=f"delete_{index}")
         expense_buttons.append([button])
 
     navigation_buttons = []
     if start_index > 0:
         navigation_buttons.append(InlineKeyboardButton(
-            "⬅️ Previous", 
+            "⬅️ Previous",
             callback_data="previous"))
     if end_index < num_rows:
         navigation_buttons.append(InlineKeyboardButton(
-            "➡️ Next", 
+            "➡️ Next",
             callback_data="next"))
 
-    all_buttons = expense_buttons + [navigation_buttons] if navigation_buttons else expense_buttons
+    all_buttons = expense_buttons + \
+        [navigation_buttons] if navigation_buttons else expense_buttons
 
     if hasattr(update, 'callback_query') and update.callback_query:
         await update.callback_query.message.edit_text(
@@ -192,7 +196,7 @@ async def delete_expense(update: Update, context: ContextTypes.DEFAULT_TYPE, exp
             f"Error deleting expense: {e}",
             show_alert=True)
 
-    return await start(update, context)
+    return CHOOSING
 
 
 async def ask_budget(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -200,12 +204,12 @@ async def ask_budget(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     Show budget options: set budget or show budget.
     """
     budget_buttons = [
-        [InlineKeyboardButton("Set budget", callback_data="set_budget")],
-        [InlineKeyboardButton("Show budget", callback_data="show_budget")]
+        ("Set", "set_budget"),
+        ("Show", "show_budget")
     ]
     await update.message.reply_text(
         "Choose an action for budget:",
-        reply_markup=InlineKeyboardMarkup(budget_buttons))
+        reply_markup=build_keyboard(budget_buttons))
     return CHOOSING_BUDGET
 
 
@@ -219,6 +223,7 @@ async def ask_budget_category(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
     return CHOOSING_BUDGET_CATEGORY
 
+
 async def ask_budget_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
     Store selected category and prompt user to enter the budget amount.
@@ -229,6 +234,7 @@ async def ask_budget_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     )
     return CHOOSING_BUDGET_AMOUNT
 
+
 async def save_budget(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
     Save the entered budget for the selected category.
@@ -237,7 +243,7 @@ async def save_budget(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         budget = float(update.message.text.replace(',', '.'))
         if budget <= 0:
             raise ValueError("Budget must be greater than 0")
-            
+
         category = context.user_data['budget_category']
         set_budget(category, budget)
         await update.message.reply_text(
@@ -245,7 +251,8 @@ async def save_budget(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         )
     except ValueError:
         await update.message.reply_text("Please enter a valid budget amount. 🚨")
-    return await start(update, context)
+
+    return CHOOSING
 
 
 async def show_budget(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -267,7 +274,8 @@ async def show_budget(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         message = "No budgets set."
 
     await update.callback_query.message.reply_text(message, parse_mode='HTML')
-    return await start(update, context)
+
+    return CHOOSING
 
 
 async def ask_charts(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -275,19 +283,15 @@ async def ask_charts(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     Display options for generating different expense charts.
     """
     chart_buttons = [
-        [InlineKeyboardButton("Expense by category (yearly)",
-        callback_data="chart_yearly")],
-        [InlineKeyboardButton("Expense by category (monthly)",
-        callback_data="chart_monthly")],
-        [InlineKeyboardButton("Trend top 3 categories (monthly)",
-        callback_data="chart_trend")],
-        [InlineKeyboardButton("Heatmap expense intensity (monthly)",
-        callback_data="chart_heatmap")]
+        ("Pie", "chart_yearly"),
+        ("Histogram", "chart_monthly"),
+        ("Trend", "chart_trend"),
+        ("Heatmap", "chart_heatmap")
     ]
     await update.message.reply_text(
         "Select a chart to view:",
-        reply_markup=InlineKeyboardMarkup(chart_buttons))
-    
+        reply_markup=build_keyboard(chart_buttons))
+
     return CHOOSING_CHART
 
 
@@ -296,10 +300,10 @@ async def show_yearly_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     Generate and display a yearly pie chart of expenses by category.
     """
     if is_local_expense_file_empty():
-        await update.callback_query.message.reply_text(
+        await update.callback_query.message.edit_text(
             "You have not yet registered expenses."
         )
-        return await start(update, context)
+        return CHOOSING
 
     wb, ws = get_local_expense_wb()
     values = pd.DataFrame(ws.values)
@@ -311,11 +315,14 @@ async def show_yearly_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     df['Date'] = pd.to_datetime(df['Date'], format='%d/%m/%Y')
 
     await save_pie_chart(df, 'charts/expense_by_category_by_year.png')
+    await update.callback_query.message.edit_text(
+        "Yay! You graph is ready:"
+    )
     await update.callback_query.message.reply_photo(
         open('charts/expense_by_category_by_year.png', 'rb'),
         caption="Expense by category (yearly)"
     )
-    return await start(update, context)
+    return CHOOSING
 
 
 async def show_trend_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -323,10 +330,10 @@ async def show_trend_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     Generate and display a trend chart of the top 3 expense categories by month.
     """
     if is_local_expense_file_empty():
-        await update.callback_query.message.reply_text(
+        await update.callback_query.message.edit_text(
             "You have not yet registered expenses."
         )
-        return await start(update, context)
+        return CHOOSING
     wb, ws = get_local_expense_wb()
     values = pd.DataFrame(ws.values)
     if len(values.columns) > 0:
@@ -337,11 +344,14 @@ async def show_trend_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     df['Date'] = pd.to_datetime(df['Date'], format='%d/%m/%Y')
 
     await save_trend_chart(df, 'charts/expense_trend_top_categories_by_month.png')
+    await update.callback_query.message.edit_text(
+        "Yay! You graph is ready:"
+    )
     await update.callback_query.message.reply_photo(
         open('charts/expense_trend_top_categories_by_month.png', 'rb'),
         caption="Trend top 3 categories (monthly)")
 
-    return await start(update, context)
+    return CHOOSING
 
 
 async def show_monthly_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -349,10 +359,10 @@ async def show_monthly_chart(update: Update, context: ContextTypes.DEFAULT_TYPE)
     Generate and display a monthly stacked bar chart of expenses by category.
     """
     if is_local_expense_file_empty():
-        await update.callback_query.message.reply_text(
+        await update.callback_query.message.edit_text(
             "You have not yet registered expenses."
         )
-        return await start(update, context)
+        return CHOOSING
     wb, ws = get_local_expense_wb()
     values = pd.DataFrame(ws.values)
     if len(values.columns) > 0:
@@ -363,11 +373,15 @@ async def show_monthly_chart(update: Update, context: ContextTypes.DEFAULT_TYPE)
     df['Date'] = pd.to_datetime(df['Date'], format='%d/%m/%Y')
 
     await save_stacked_bar_chart(df, 'charts/monthly_expenses_by_category.png')
+    await update.callback_query.message.edit_text(
+        "Yay! You graph is ready:"
+    )
     await update.callback_query.message.reply_photo(
-        open('charts/monthly_expenses_by_category.png', 'rb'),
-        caption="Expense by category (monthly)")
+        open('charts/heatmap_expense_intensity.png', 'rb'),
+        caption="Heatmap of expense intensity (monthly)"
+    )
 
-    return await start(update, context)
+    return CHOOSING
 
 
 async def show_heatmap_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -375,10 +389,10 @@ async def show_heatmap_chart(update: Update, context: ContextTypes.DEFAULT_TYPE)
     Generate and display a heatmap of monthly expense intensity.
     """
     if is_local_expense_file_empty():
-        await update.callback_query.message.reply_text(
+        await update.callback_query.message.edit_text(
             "You have not yet registered expenses."
         )
-        return await start(update, context)
+        return CHOOSING
     wb, ws = get_local_expense_wb()
     values = pd.DataFrame(ws.values)
     if len(values.columns) > 0:
@@ -389,11 +403,15 @@ async def show_heatmap_chart(update: Update, context: ContextTypes.DEFAULT_TYPE)
     df['Date'] = pd.to_datetime(df['Date'], format='%d/%m/%Y')
 
     await save_heatmap(df, 'charts/heatmap_expense_intensity.png')
+    await update.callback_query.message.edit_text(
+        "Yay! You graph is ready:"
+    )
     await update.callback_query.message.reply_photo(
         open('charts/heatmap_expense_intensity.png', 'rb'),
-        caption="Heatmap of expense intensity (monthly)")
+        caption="Heatmap of expense intensity (monthly)"
+    )
 
-    return await start(update, context)
+    return CHOOSING
 
 
 async def make_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -430,7 +448,7 @@ async def make_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         message += f"  <b>Total:</b> {total:.2f} €\n"
     await update.message.reply_text(message, parse_mode='HTML')
 
-    return await start(update, context)
+    return CHOOSING
 
 
 async def ask_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -442,22 +460,24 @@ async def ask_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     google_sync_button_text = "Disable Google Sheet sync" if google_sync_status == "enabled" else "Enable Google Sheet sync"
     google_sync_callback_data = "disable_sync" if google_sync_status == "enabled" else "enable_sync"
 
-    budget_notification_status = "enabled" if settings['budget_notifications']['enabled'] else "disabled"
+    budget_notification_status = "enabled" if settings[
+        'budget_notifications']['enabled'] else "disabled"
     budget_notification_button_text = "Disable budget notification" if budget_notification_status == "enabled" else "Enable budget notification"
     budget_notification_callback_data = "disable_budget_notifications" if budget_notification_status == "enabled" else "enable_budget_notifications"
 
-    settings_keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton(google_sync_button_text, callback_data=google_sync_callback_data)],
-        [InlineKeyboardButton(budget_notification_button_text, callback_data=budget_notification_callback_data)]
-    ])
+    settings_keyboard = [
+        (google_sync_button_text, google_sync_callback_data),
+        (budget_notification_button_text, budget_notification_callback_data)
+    ]
     message = (f"- Google Sheets sync is currently <u>{google_sync_status}</u>.\n"
                f"- Budget notifications are currently <u>{budget_notification_status}</u>.\n")
     await update.message.reply_text(
         message,
-        reply_markup=settings_keyboard,
-        parse_mode='HTML'
+        reply_markup=build_keyboard(settings_keyboard),
+        parse_mode='HTML',
     )
     return CHOOSING
+
 
 async def handle_settings_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
@@ -482,16 +502,6 @@ async def handle_settings_choice(update: Update, context: ContextTypes.DEFAULT_T
     save_settings(settings)
     await update.callback_query.answer()
     await update.callback_query.message.edit_text(message)
-
-    return CHOOSING
-
-
-
-async def invalid_transition(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """
-    Handle invalid user actions (gracefully).
-    """
-    await update.message.reply_text("Invalid action. One thing at a time..")
 
     return CHOOSING
 
