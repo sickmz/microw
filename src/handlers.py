@@ -377,8 +377,8 @@ async def show_monthly_chart(update: Update, context: ContextTypes.DEFAULT_TYPE)
         "Yay! You graph is ready:"
     )
     await update.callback_query.message.reply_photo(
-        open('charts/heatmap_expense_intensity.png', 'rb'),
-        caption="Heatmap of expense intensity (monthly)"
+        open('charts/monthly_expenses_by_category.png', 'rb'),
+        caption="Expense by category (monthly)"
     )
 
     return CHOOSING
