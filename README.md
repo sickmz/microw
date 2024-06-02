@@ -4,7 +4,7 @@ This is a telegram bot that interacts with Google Sheets and allows you to add, 
 ## Demo
 
 <div align="center">
-  <video src="https://github.com/sickmz/microw/assets/24682196/7c144975-9f64-4aa9-8a9f-11b592cf6228" width="400" />
+  <video src="https://github.com/sickmz/microw/assets/24682196/5d313126-2309-4a17-9004-7fac3babe1cb" width="400" />
 </div>
 
 ## What's new
