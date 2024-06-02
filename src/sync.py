@@ -5,7 +5,7 @@ from config import logger
 
 from config import REMOTE_SPREADSHEET_ID, REMOTE_EXPENSE_SHEET
 
-from constants import LOCAL_EXPENSE_PATH 
+from constants import LOCAL_EXPENSE_PATH
 
 
 def sync_to_google_sheets():
@@ -23,13 +23,15 @@ def sync_to_google_sheets():
             df.columns = df.iloc[0]
             df = df[1:]
 
-        last_upload = pd.to_datetime(settings['google_sync'].get('last_upload'))
+        last_upload = pd.to_datetime(
+            settings['google_sync'].get('last_upload'))
         new_records = df[pd.to_datetime(
             df['Timestamp']) > last_upload] if last_upload else df
 
         if not new_records.empty:
             logger.info(f"New records to upload: {len(new_records)}")
-            sheet = get_remote_expense_wb(REMOTE_SPREADSHEET_ID, REMOTE_EXPENSE_SHEET)
+            sheet = get_remote_expense_wb(
+                REMOTE_SPREADSHEET_ID, REMOTE_EXPENSE_SHEET)
             records_to_upload = new_records[
                 ['Month', 'Category', 'Subcategory', 'Price', 'Date']
             ].values.tolist()
@@ -51,6 +53,6 @@ def start_scheduler():
     Start the background scheduler to run the sync function at regular intervals.
     """
     scheduler = BackgroundScheduler()
-    scheduler.add_job(sync_to_google_sheets, 'interval', seconds=5)
+    scheduler.add_job(sync_to_google_sheets, 'interval', minutes=5)
     scheduler.start()
     return scheduler

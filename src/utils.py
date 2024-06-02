@@ -1,7 +1,7 @@
 import os
 import json
 from openpyxl import load_workbook, Workbook
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Bot
+from telegram import KeyboardButton, ReplyKeyboardMarkup, Bot
 import gspread
 
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_USER_ID
@@ -11,35 +11,23 @@ from constants import LOCAL_BUDGET_PATH, LOCAL_EXPENSE_PATH, LOCAL_CHART_PATH, L
 
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
-def build_keyboard(options: list, max_row_length: int = 20) -> InlineKeyboardMarkup:
-    """
-    Build an inline keyboard.
-    """
-    if not isinstance(options, list):
-        options = list(options)
 
+def build_keyboard(options, buttons_per_row=3):
+    """
+    Create a dynamic keyboard with a given number of buttons per row.
+
+    :param options: List of option strings for the buttons.
+    :param buttons_per_row: Number of buttons per row.
+    :return: ReplyKeyboardMarkup object.
+    """
     keyboard = []
-    row_buttons = []
-    current_length = 0
-
-    for option in options:
-        if isinstance(option, tuple):
-            text, callback_data = option
-        else:
-            text = callback_data = option
-
-        if current_length + len(text) > max_row_length and row_buttons:
-            keyboard.append(row_buttons)
-            row_buttons = []
-            current_length = 0
-
-        row_buttons.append(InlineKeyboardButton(text, callback_data=callback_data))
-        current_length += len(text) + 1
-
-    if row_buttons:
-        keyboard.append(row_buttons)
-
-    return InlineKeyboardMarkup(keyboard)
+    row = []
+    for i, option in enumerate(options):
+        row.append(KeyboardButton(option))
+        if (i + 1) % buttons_per_row == 0 or i == len(options) - 1:
+            keyboard.append(row)
+            row = []
+    return ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
 
 
 def load_settings():
@@ -89,7 +77,7 @@ def ensure_expense_file():
 def ensure_budget_file():
     """
     Ensure the budget file exists with appropriate headers and initialize categories to 0.
-    """      
+    """
     if not os.path.exists(LOCAL_BUDGET_PATH):
         os.makedirs(os.path.dirname((LOCAL_BUDGET_PATH)), exist_ok=True)
         wb = Workbook()
@@ -197,6 +185,6 @@ async def check_budget(category):
     budget, spent = get_budget(category)
     if spent > budget & budget > 0:
         message = (f"⚠️ Alert ⚠️ \n\nBudget exceeded for <u>{category}</u>\n"
-               f"You spent {spent} € and your budget was {budget} € \n"
-               f"You exceeded your budget by <b>{spent - budget}</b> €")
+                   f"You spent {spent} € and your budget was {budget} € \n"
+                   f"You exceeded your budget by <b>{spent - budget}</b> €")
         await bot.send_message(chat_id=TELEGRAM_USER_ID, text=message, parse_mode='HTML')
