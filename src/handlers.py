@@ -47,6 +47,9 @@ async def ask_subcategory(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     Uses a dynamic layout for multiple buttons per row.
     """
     selected_category = update.message.text
+    if selected_category not in categories:
+        return await handle_unexpected_message(update, context)
+        
     context.user_data['selected_category'] = selected_category
     subcategory_keys = categories[selected_category]
     reply_markup = build_keyboard(subcategory_keys, buttons_per_row=3)
@@ -58,7 +61,15 @@ async def ask_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
     Store selected subcategory and prompt user to enter the price.
     """
-    context.user_data["selected_subcategory"] = update.message.text
+    selected_subcategory = update.message.text
+    selected_category = context.user_data.get("selected_category")
+
+    if selected_category and selected_subcategory not in categories.get(selected_category, []):
+        return await handle_unexpected_message(update, context)
+
+    context.user_data["selected_subcategory"] = selected_subcategory
+    logger.info(f"Selected subcategory: {context.user_data['selected_subcategory']}")
+
     await update.message.reply_text(
         "Enter the price for this item:"
     )
@@ -102,7 +113,7 @@ async def ask_deleting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     """
     if is_local_expense_file_empty():
         await update.message.reply_text(
-            "You have not yet registered expenses."
+            "You have not yet registered expenses.", reply_markup=markup
         )
         return CHOOSING
 
@@ -162,7 +173,7 @@ async def handle_deletion(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     expense_dict = context.user_data.get('expense_dict', {})
     ui_expense_id = expense_dict.get(text)
     if ui_expense_id is None:
-        await update.message.reply_text("Invalid selection. Please try again.")
+        await update.message.reply_text("Invalid selection. Please try again.", reply_markup=markup)
         return CHOOSING
 
     current_page = context.user_data.get('current_page', 0)
@@ -192,7 +203,7 @@ async def delete_expense(update: Update, context: ContextTypes.DEFAULT_TYPE, exp
         wb.save(LOCAL_EXPENSE_PATH)
         await update.message.reply_text("Expense deleted successfully. ✅", reply_markup=markup)
     except Exception as e:
-        await update.message.reply_text(f"Error deleting expense: {e}")
+        await update.message.reply_text(f"Error deleting expense: {e}", reply_markup=markup)
         logger.error(f"Error: {e}")
     return CHOOSING
 
@@ -223,14 +234,29 @@ async def ask_budget_category(update: Update, context: ContextTypes.DEFAULT_TYPE
     return CHOOSING_BUDGET_CATEGORY
 
 
+def get_current_budget(category: str) -> float:
+    wb, ws = get_local_budget_wb()
+    for row in ws.iter_rows(min_row=2, max_col=3, values_only=True):
+        if row[0] == category:
+            return row[1]
+    return 0.0  
+
+
 async def ask_budget_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
     Store the selected budget category and prompt the user to enter the budget amount.
     """
     selected_category = update.message.text
     context.user_data['budget_category'] = selected_category
+    
+    if selected_category not in categories:
+        return await handle_unexpected_message(update, context)
 
-    await update.message.reply_text(f"Enter the budget amount for {selected_category}:")
+    current_budget = get_current_budget(selected_category)
+    
+    await update.message.reply_text(
+        f"Enter the budget amount for {selected_category}. \n(Current budget: {current_budget} €)"
+    )
     return CHOOSING_BUDGET_AMOUNT
 
 
@@ -249,7 +275,7 @@ async def save_budget(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             f"Budget set for {category}: {budget} €", reply_markup=markup
         )
     except ValueError:
-        await update.message.reply_text("Please enter a valid budget amount. 🚨")
+        await update.message.reply_text("Please enter a valid budget amount. 🚨", reply_markup=markup)
 
     return CHOOSING
 
@@ -292,7 +318,7 @@ async def ask_charts(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def show_yearly_chart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if is_local_expense_file_empty():
-        await update.message.reply_text("You have not yet registered expenses.")
+        await update.message.reply_text("You have not yet registered expenses.", reply_markup=markup)
         return CHOOSING
 
     wb, ws = get_local_expense_wb()
@@ -474,3 +500,7 @@ async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data.clear()
 
     return await start(update, context)
+
+async def handle_unexpected_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    await update.message.reply_text("Huh?", reply_markup=markup)
+    return CHOOSING

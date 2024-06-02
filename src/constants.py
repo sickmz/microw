@@ -21,7 +21,7 @@ markup = ReplyKeyboardMarkup(
 
 # Define categories
 categories = {
-    'Home': ['Gas', 'Light', 'Water', 'Tari', 'Rent', 'Products'],
-    'Food': ['Market', 'Delivery', 'Gastronomy'],
-    'Subscriptions': ['Fastweb', 'Ho', 'Everli', 'Prime'],
+  'Home': ['Gas', 'Light', 'Water', 'Tari', 'Rent', 'Products'],
+  'Food': ['Market', 'Delivery', 'Gastronomy'],
+  'Subscription': ['Fastweb', 'Ho', 'Everli', 'Prime'],
 }

@@ -15,10 +15,6 @@ bot = Bot(token=TELEGRAM_BOT_TOKEN)
 def build_keyboard(options, buttons_per_row=3):
     """
     Create a dynamic keyboard with a given number of buttons per row.
-
-    :param options: List of option strings for the buttons.
-    :param buttons_per_row: Number of buttons per row.
-    :return: ReplyKeyboardMarkup object.
     """
     keyboard = []
     row = []

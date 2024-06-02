@@ -6,7 +6,7 @@ from handlers import ask_category, ask_subcategory, ask_price, save_on_local_spr
 from handlers import ask_deleting, handle_deletion, handle_pagination
 from handlers import ask_charts, make_list
 from handlers import ask_settings, handle_settings_choice
-from handlers import fallback
+from handlers import fallback, handle_unexpected_message
 from handlers import show_yearly_chart, show_monthly_chart, show_trend_chart, show_heatmap_chart
 from handlers import ask_budget, ask_budget_category, ask_budget_amount, show_budget, save_budget
 
@@ -48,18 +48,27 @@ def main() -> None:
                     "^Enable budget notification$"), handle_settings_choice),
                 MessageHandler(filters.Regex(
                     "^Disable budget notification$"), handle_settings_choice),
+                MessageHandler(filters.TEXT & ~filters.COMMAND,
+                               handle_unexpected_message),
             ],
-            CHOOSING_CATEGORY: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_subcategory)],
-            CHOOSING_SUBCATEGORY: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_price)],
-
+            CHOOSING_CATEGORY: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, ask_subcategory),
+                ],
+            CHOOSING_SUBCATEGORY: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, ask_price),
+                ]
+,
             CHOOSING_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_on_local_spreadsheet)],
 
             CHOOSING_ITEM_TO_DELETE: [
                 MessageHandler(filters.Regex(
                     r"^🔥 \d{2}/\d{2}/\d{4} [\w\s]+/[\w\s]+: (\d+(?:,\d{2})?) €$"), handle_deletion),
 
+
                 MessageHandler(filters.Regex(
-                    "^(⬅️ Previous|➡️ Next)$"), handle_pagination)
+                    "^(⬅️ Previous|➡️ Next)$"), handle_pagination),
+                MessageHandler(filters.TEXT & ~filters.COMMAND,
+                               handle_unexpected_message),
             ],
             CHOOSING_CHART: [
                 MessageHandler(filters.Regex("^Pie$"), show_yearly_chart),
@@ -67,15 +76,21 @@ def main() -> None:
                                show_monthly_chart),
                 MessageHandler(filters.Regex("^Trend$"), show_trend_chart),
                 MessageHandler(filters.Regex("^Heatmap$"), show_heatmap_chart),
+                MessageHandler(filters.TEXT & ~filters.COMMAND,
+                               handle_unexpected_message),
             ],
 
             CHOOSING_BUDGET: [
                 MessageHandler(filters.Regex("^Set$"), ask_budget_category),
                 MessageHandler(filters.Regex("^Show$"), show_budget),
+                MessageHandler(filters.TEXT & ~filters.COMMAND,
+                               handle_unexpected_message),
             ],
             CHOOSING_BUDGET_CATEGORY: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND,
                                ask_budget_amount),
+                MessageHandler(filters.TEXT & ~filters.COMMAND,
+                               handle_unexpected_message),
             ],
 
             CHOOSING_BUDGET_AMOUNT: menu_handlers + [
