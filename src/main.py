@@ -3,7 +3,7 @@ from telegram import Update
 
 from handlers import start
 from handlers import ask_category, ask_subcategory, ask_price, save_on_local_spreadsheet
-from handlers import ask_deleting, handle_navigation
+from handlers import ask_deleting, handle_deletion, handle_pagination
 from handlers import ask_charts, make_list
 from handlers import ask_settings, handle_settings_choice
 from handlers import fallback
@@ -28,6 +28,7 @@ menu_handlers = [
     MessageHandler(filters.Regex("^⚙️ Settings$"), ask_settings),
 ]
 
+
 def main() -> None:
     """
     Main function to start the bot.
@@ -39,33 +40,44 @@ def main() -> None:
         entry_points=[CommandHandler("start", start)],
         states={
             CHOOSING: menu_handlers + [
-                CallbackQueryHandler(handle_settings_choice, pattern="^(enable_sync|disable_sync|enable_budget_notifications|disable_budget_notifications)$")
+                MessageHandler(filters.Regex(
+                    "^Enable Google Sheet sync$"), handle_settings_choice),
+                MessageHandler(filters.Regex(
+                    "^Disable Google Sheet sync$"), handle_settings_choice),
+                MessageHandler(filters.Regex(
+                    "^Enable budget notification$"), handle_settings_choice),
+                MessageHandler(filters.Regex(
+                    "^Disable budget notification$"), handle_settings_choice),
             ],
-            CHOOSING_CATEGORY: menu_handlers + [
-                CallbackQueryHandler(ask_subcategory),
+            CHOOSING_CATEGORY: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_subcategory)],
+            CHOOSING_SUBCATEGORY: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_price)],
+
+            CHOOSING_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_on_local_spreadsheet)],
+
+            CHOOSING_ITEM_TO_DELETE: [
+                MessageHandler(filters.Regex(
+                    r"^🔥 \d{2}/\d{2}/\d{4} [\w\s]+/[\w\s]+: (\d+(?:,\d{2})?) €$"), handle_deletion),
+
+                MessageHandler(filters.Regex(
+                    "^(⬅️ Previous|➡️ Next)$"), handle_pagination)
             ],
-            CHOOSING_SUBCATEGORY: menu_handlers + [
-                CallbackQueryHandler(ask_price),
+            CHOOSING_CHART: [
+                MessageHandler(filters.Regex("^Pie$"), show_yearly_chart),
+                MessageHandler(filters.Regex("^Histogram$"),
+                               show_monthly_chart),
+                MessageHandler(filters.Regex("^Trend$"), show_trend_chart),
+                MessageHandler(filters.Regex("^Heatmap$"), show_heatmap_chart),
             ],
-            CHOOSING_PRICE: menu_handlers + [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, save_on_local_spreadsheet), 
+
+            CHOOSING_BUDGET: [
+                MessageHandler(filters.Regex("^Set$"), ask_budget_category),
+                MessageHandler(filters.Regex("^Show$"), show_budget),
             ],
-            CHOOSING_ITEM_TO_DELETE: menu_handlers + [
-                CallbackQueryHandler(handle_navigation),
+            CHOOSING_BUDGET_CATEGORY: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND,
+                               ask_budget_amount),
             ],
-            CHOOSING_CHART: menu_handlers + [
-                CallbackQueryHandler(show_yearly_chart, pattern="^chart_yearly$"),
-                CallbackQueryHandler(show_monthly_chart, pattern="^chart_monthly$"),
-                CallbackQueryHandler(show_trend_chart, pattern="^chart_trend$"),
-                CallbackQueryHandler(show_heatmap_chart, pattern="^chart_heatmap$"),
-            ],
-            CHOOSING_BUDGET: menu_handlers + [
-                CallbackQueryHandler(ask_budget_category,pattern="^set_budget$"),
-                CallbackQueryHandler(show_budget, pattern="^show_budget$")
-            ],
-            CHOOSING_BUDGET_CATEGORY: menu_handlers + [
-                CallbackQueryHandler(ask_budget_amount),
-            ],
+
             CHOOSING_BUDGET_AMOUNT: menu_handlers + [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, save_budget)
             ],
