@@ -180,7 +180,15 @@ async def check_budget(category):
 
     budget, spent = get_budget(category)
     if spent > budget & budget > 0:
-        message = (f"⚠️ Alert ⚠️ \n\nBudget exceeded for <u>{category}</u>\n"
+        message = (f"Alert ⚠️ \n\nBudget exceeded for <u>{category}</u>\n"
                    f"You spent {spent} € and your budget was {budget} € \n"
                    f"You exceeded your budget by <b>{spent - budget}</b> €")
         await bot.send_message(chat_id=TELEGRAM_USER_ID, text=message, parse_mode='HTML')
+
+
+def get_current_budget(category: str) -> float:
+    wb, ws = get_local_budget_wb()
+    for row in ws.iter_rows(min_row=2, max_col=3, values_only=True):
+        if row[0] == category:
+            return row[1]
+    return 0.0

@@ -15,9 +15,7 @@ reply_keyboard = [
     ["✏️ Add", "❌ Delete", "📊 Charts"],
     ["📋 List", "💰 Budget", "⚙️ Settings"]
 ]
-markup = ReplyKeyboardMarkup(
-    reply_keyboard, one_time_keyboard=False, resize_keyboard=True
-)
+markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
 
 # Define categories
 categories = {
