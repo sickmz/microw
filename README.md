@@ -1,6 +1,5 @@
 # Overview
-This is a telegram bot that interacts with Google Sheets and allows you to add, delete, make an expense list and show various graphs.
-
+This is a telegram bot that allows you to manage your finances on a local `.xlsx` file and add, delete, create an expense list, show charts and set budgets with alerts. In addition, you can synchronize it with Google Sheets.
 ## ToC
 
 - [Demo](#demo)
@@ -148,6 +147,7 @@ sudo systemctl status microw.service
 2. Use the `/start` command to initiate interaction.
 3. Choose an action from the provided options: `✏️ Add`, `❌ Delete`, `📊 Charts`, `📋 List`, `💰 Budget` or `⚙️ Settings`.
 4. Follow the bot's prompts.
+5. I recommend setting the custom `/cancel` command on BotFather to cancel an operation (for example interrupting the entry of an expense).
 
 ## Contributing
 
