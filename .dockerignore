@@ -1,0 +1,7 @@
+credentials.json
+.env
+.git
+.gitignore
+Dockerfile
+docker-compose.yml
+*.md
