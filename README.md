@@ -1,6 +1,18 @@
 # Overview
 This is a telegram bot that interacts with Google Sheets and allows you to add, delete, make an expense list and show various graphs.
 
+## ToC
+
+- [Demo](#demo)
+- [What's new](#whats-new)
+- [Next steps](#next-step)
+- [Feature](#feature)
+- [Installation](#installation)
+- [(Optional) Run with Docker](#optional-run-with-docker)
+- [(Optional) Setting as Systemd service](#optional-setting-as-systemd-service)
+- [Usage](#usage)
+- [Contributing](#contributing)
+
 ## Demo
 
 <div align="center">
@@ -15,12 +27,13 @@ This is a telegram bot that interacts with Google Sheets and allows you to add, 
 - ⚙️To improve readability and maintenance, the code was split into modules.
 - 💰 Budgeting Feature: You can now set a budget for different expense categories and track your spending against these budgets.
     - Receive notifications when your spending exceeds the set budget for any category. You can enable or disable budget notifications via the `⚙️ Settings` command.
-
-## Next step
+- Docker image
+## Next steps
 - [x] ~~Initial decision screen between Google Sheets and *save data locally* in .csv format with ability to export and share (for those not planning to use gsheet)~~
 - [x] ~~Improve the speed of execution for the elimination of an expense~~
 - [x] ~~Simplify the code and make it more modular~~
 - [x] ~~Creation of budgets with alerts if exceeded~~
+- [x] ~~Docker image~~
 - [ ] Income management
 - [ ] Cash account
 - [ ] Investments
@@ -42,20 +55,20 @@ git clone https://github.com/sickmz/microw.git
 cd microw
 ```
 
-## Create a virtual environment:
+### Create a virtual environment:
 
 ```
 python3 -m venv venv
 source venv/bin/activate
 ```
 
-## Install the required packages:
+### Install the required packages:
 
 ```
 pip install -r requirements.txt
 ```
 
-## Create a Google Service Account
+### Create a Google Service Account
 - Go to the [Google Cloud Console](https://console.cloud.google.com/).
 - Create a new project or select an existing one.
 - Enable the Google Sheet Api for this project.
@@ -66,7 +79,7 @@ pip install -r requirements.txt
 - Rename the downloaded file to credentials.json and place it in the root directory of the project.
 - Share your spreadsheet with the email of Google Service Account.
 
-## `.env` configuration
+### `.env` configuration
 
 1. Create a `.env` file in the root directory of the project:
 
@@ -84,6 +97,10 @@ REMOTE_EXPENSE_SHEET=your_remote_expense_sheet_name
 ```
 
 3. Make sure to add `.env` to your `.gitignore` file to prevent accidental commits.
+
+## (Optional) Run with Docker
+
+The command `docker compose up -d` will automatically build the docker image, just make sure to pass the `.env` file and `credentials.json` as volumes. In the repo I uploaded a sample of `docker-compose.yaml`. To install Docker look at [this](https://gist.github.com/sickmz/2fe45975a56adcdd3d9f67842064f796#file-docker-installation) gist.
 
 ## (Optional) Setting as Systemd Service:
 
