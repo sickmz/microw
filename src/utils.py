@@ -1,13 +1,17 @@
-import os
 import json
-from openpyxl import load_workbook, Workbook
-from telegram import KeyboardButton, ReplyKeyboardMarkup, Bot
+import os
+
 import gspread
-
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_USER_ID
-
-from constants import categories
-from constants import LOCAL_BUDGET_PATH, LOCAL_EXPENSE_PATH, LOCAL_CHART_PATH, LOCAL_SETTINGS_PATH
+from constants import (
+    LOCAL_BUDGET_PATH,
+    LOCAL_CHART_PATH,
+    LOCAL_EXPENSE_PATH,
+    LOCAL_SETTINGS_PATH,
+    categories,
+)
+from openpyxl import Workbook, load_workbook
+from telegram import Bot, KeyboardButton, ReplyKeyboardMarkup
 
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
@@ -31,20 +35,22 @@ def load_settings():
     Load settings from a JSON file. If the file doesn't exist, create it with default settings.
     """
     default_settings = {
-        'google_sync': {'enabled': False, 'last_upload': None},
-        'budget_notifications': {'enabled': False}
+        "google_sync": {"enabled": False, "last_upload": None},
+        "budget_notifications": {"enabled": False},
     }
     if not os.path.exists(LOCAL_SETTINGS_PATH):
         settings = default_settings
-        with open(LOCAL_SETTINGS_PATH, 'w') as f:
+        with open(LOCAL_SETTINGS_PATH, "w") as f:
             json.dump(settings, f)
     else:
-        with open(LOCAL_SETTINGS_PATH, 'r') as f:
+        with open(LOCAL_SETTINGS_PATH, "r") as f:
             settings = json.load(f)
-            if 'google_sync' not in settings:
-                settings['google_sync'] = default_settings['google_sync']
-            if 'budget_notifications' not in settings:
-                settings['budget_notifications'] = default_settings['budget_notifications']
+            if "google_sync" not in settings:
+                settings["google_sync"] = default_settings["google_sync"]
+            if "budget_notifications" not in settings:
+                settings["budget_notifications"] = default_settings[
+                    "budget_notifications"
+                ]
             save_settings(settings)
     return settings
 
@@ -53,7 +59,7 @@ def save_settings(settings):
     """
     Save the given settings to a JSON file.
     """
-    with open(LOCAL_SETTINGS_PATH, 'w') as f:
+    with open(LOCAL_SETTINGS_PATH, "w") as f:
         json.dump(settings, f)
 
 
@@ -65,8 +71,7 @@ def ensure_expense_file():
         os.makedirs((os.path.dirname(LOCAL_EXPENSE_PATH)), exist_ok=True)
         wb = Workbook()
         ws = wb.active
-        ws.append(["Month", "Category", "Subcategory",
-                  "Price", "Date", "Timestamp"])
+        ws.append(["Month", "Category", "Subcategory", "Price", "Date", "Timestamp"])
         wb.save(LOCAL_EXPENSE_PATH)
 
 
@@ -109,7 +114,7 @@ def get_remote_expense_wb(remote_spreadsheet_id, remote_worksheet_name):
     Get the specified worksheet from a Google Sheets spreadsheet using its ID and worksheet name.
     Requires credentials stored in 'credentials.json'.
     """
-    gc = gspread.service_account(filename='credentials.json')
+    gc = gspread.service_account(filename="credentials.json")
     return gc.open_by_key(remote_spreadsheet_id).worksheet(remote_worksheet_name)
 
 
@@ -175,15 +180,19 @@ async def check_budget(category):
     Notify the user if the spending for the given category exceeds the budget.
     """
     settings = load_settings()
-    if not settings['budget_notifications']['enabled']:
+    if not settings["budget_notifications"]["enabled"]:
         return
 
     budget, spent = get_budget(category)
     if spent > budget & budget > 0:
-        message = (f"Alert ⚠️ \n\nBudget exceeded for <u>{category}</u>\n"
-                   f"You spent {spent} € and your budget was {budget} € \n"
-                   f"You exceeded your budget by <b>{spent - budget}</b> €")
-        await bot.send_message(chat_id=TELEGRAM_USER_ID, text=message, parse_mode='HTML')
+        message = (
+            f"Alert ⚠️ \n\nBudget exceeded for <u>{category}</u>\n"
+            f"You spent {spent} € and your budget was {budget} € \n"
+            f"You exceeded your budget by <b>{spent - budget}</b> €"
+        )
+        await bot.send_message(
+            chat_id=TELEGRAM_USER_ID, text=message, parse_mode="HTML"
+        )
 
 
 def get_current_budget(category: str) -> float:

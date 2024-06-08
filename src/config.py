@@ -1,10 +1,10 @@
 import logging
-from dotenv import load_dotenv, dotenv_values
+
+from dotenv import dotenv_values, load_dotenv
 
 # Configure logging
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", 
-    level=logging.INFO
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
