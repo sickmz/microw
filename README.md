@@ -7,9 +7,10 @@ This is a telegram bot that allows you to manage your finances on a local `.xlsx
 - [Next steps](#next-step)
 - [Feature](#feature)
 - [Installation](#installation)
+- [Usage](#usage)
+- [Mermaid-based state diagram](#mermaid-based-state-diagram)
 - [(Optional) Run with Docker](#optional-run-with-docker)
 - [(Optional) Setting as Systemd service](#optional-setting-as-systemd-service)
-- [Usage](#usage)
 - [Contributing](#contributing)
 
 ## Demo
@@ -97,6 +98,74 @@ REMOTE_EXPENSE_SHEET=your_remote_expense_sheet_name
 
 3. Make sure to add `.env` to your `.gitignore` file to prevent accidental commits.
 
+## Usage
+
+1. Start a conversation with the bot on Telegram.
+2. Use the `/start` command to initiate interaction.
+3. Choose an action from the provided options: `✏️ Add`, `❌ Delete`, `📊 Charts`, `📋 List`, `💰 Budget` or `⚙️ Settings`.
+4. Follow the bot's prompts.
+5. I recommend setting the custom `/cancel` command on BotFather to cancel an operation (for example interrupting the entry of an expense).
+
+## Mermaid-based state diagram
+
+```mermaid
+flowchart TB
+    A(("start")):::entryPoint --> B("Authorize User")
+    B --> |"Authorized"| C(("Show Main Menu")):::state
+    B --> |"Not Authorized"| End(("END")):::termination
+    
+    C --> |"✏️ Add"| D("Select Category"):::state
+    C --> |"❌ Delete"| E("Check Expenses"):::state
+    C --> |"📊 Charts"| F("Select Chart Type"):::state
+    C --> |"📋 List"| G("Generate Expense List"):::state
+    C --> |"💰 Budget"| H("Select Budget Action"):::state
+    C --> |"⚙️ Settings"| I("Show Settings"):::state
+
+    D --> J(("Select Subcategory"))
+    J --> K(("Enter Price"))
+    K --> L(("Save Expense"))
+    L --> C
+
+    E --> |"No expenses"| O(("No Expenses Message"))
+    E --> |"Expenses exist"| P(("Show Paginated Expenses"))
+    O --> C
+    P --> C
+
+    F --> |"Pie"| Q(("Generate Pie Chart"))
+    F --> |"Histogram"| R(("Generate Histogram"))
+    F --> |"Trend"| S(("Generate Trend Chart"))
+    F --> |"Heatmap"| T(("Generate Heatmap"))
+    Q --> C
+    R --> C
+    S --> C
+    T --> C
+
+    G --> U(("Generate Expense List"))
+    U --> C
+
+    H --> |"Set"| V(("Select Budget Category"))
+    H --> |"Show"| W(("Show Budgets"))
+    V --> X(("Enter Budget Amount"))
+    W --> C
+    X --> C
+
+    I --> Y(("Show Settings"))
+    Y --> Z(("Handle Settings Choice"))
+    Z --> C
+
+    subgraph Main
+        A1(("cancel")):::entryPoint
+        A1 --> C
+    end
+    
+    style A fill:#00FF00,stroke:#000000,stroke-width:2px
+    style B fill:#726000,stroke:#000000,stroke-width:2px
+    style End fill:#FF0000,stroke:#000000,stroke-width:2px
+    classDef state fill:#88443f,stroke:#000000,stroke-width:1px
+    classDef entryPoint fill:#009c11, stroke:#42FF57, color:#ffffff
+    classDef termination fill:#bb0007, stroke:#E60109, color:#ffffff
+```
+
 ## (Optional) Run with Docker
 
 The command `docker compose up -d` will automatically build the docker image, just make sure to pass the `.env` file and `credentials.json` as volumes. In the repo I uploaded a sample of `docker-compose.yaml`. To install Docker look at [this](https://gist.github.com/sickmz/2fe45975a56adcdd3d9f67842064f796#file-docker-installation) gist.
@@ -141,13 +210,6 @@ sudo systemctl start microw.service
 sudo systemctl status microw.service
 ```
 
-## Usage
-
-1. Start a conversation with the bot on Telegram.
-2. Use the `/start` command to initiate interaction.
-3. Choose an action from the provided options: `✏️ Add`, `❌ Delete`, `📊 Charts`, `📋 List`, `💰 Budget` or `⚙️ Settings`.
-4. Follow the bot's prompts.
-5. I recommend setting the custom `/cancel` command on BotFather to cancel an operation (for example interrupting the entry of an expense).
 
 ## Contributing
 
