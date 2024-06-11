@@ -91,15 +91,18 @@ REMOTE_SPREADSHEET_ID=your_remote_remote_spreadsheet_id
 REMOTE_EXPENSE_SHEET=your_remote_expense_sheet_name
 ```
 
-- Make sure to add `.env` and `credentials.json` to your `.gitignore` file to prevent accidental commits.
+> [!WARNING]
+> Make sure to add `.env` and `credentials.json` to your `.gitignore` file to prevent accidental commits.
 
 ## Usage
 
-1. Start a conversation with the bot on Telegram.
+1. Start a conversation with the bot on telegram.
 2. Use the `/start` command to initiate interaction.
 3. Choose an action: `✏️ Add`, `❌ Delete`, `📊 Charts`, `📋 List`, `💰 Budget` or `⚙️ Settings`.
 4. Follow the bot's prompts.
-5. I recommend setting the custom `/cancel` command on BotFather to cancel an operation (for example interrupting the entry of an expense).
+
+> [!TIP]
+> I recommend setting a `/cancel` command on BotFather to interrupt a workflow (e.g., stop entering an expense).
 
 ## Mermaid-based state diagram
 
@@ -192,7 +195,7 @@ WorkingDirectory=/home/$USER/code-server/workspace/microw
 WantedBy=multi-user.target
 ```
 
-3. Replace the ExecStart and WorkingDirectory paths with the actual paths to your script and project directory.
+3. Replace the `ExecStart` and `WorkingDirectory` paths with the actual paths to your script and project directory.
 
 4. Reload the systemd daemon, enable and start the service:
 
@@ -201,13 +204,8 @@ sudo systemctl daemon-reload
 sudo systemctl enable microw.service
 sudo systemctl start microw.service
 ```
-
-4. Check the service status:
-
-```
-sudo systemctl status microw.service
-```
-
+> [!NOTE]
+> You can check the status of the service by typing `sudo systemctl status microw.service`
 
 ## Contributing
 
