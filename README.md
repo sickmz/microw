@@ -1,4 +1,17 @@
-# Overview
+<p align="center">
+  <img src="https://github.com/sickmz/microw/assets/24682196/a46ceee3-ab8a-46bf-85e1-6b245bacbea2" alt="daruma" width="200"/>
+</p>
+
+<p align="center">
+  <a href="/LICENSE">
+    <img alt="License: MIT" src="https://cdn.prod.website-files.com/5e0f1144930a8bc8aace526c/65dd9eb5aaca434fac4f1c34_License-MIT-blue.svg"/></a>&nbsp;
+  <a href="https://t.me/sickmz">
+    <img alt="Telegram" src="https://img.shields.io/badge/Telegram-Chat%20with%20me-green" />
+  </a>
+</p>
+
+# Overview 
+
 This is a telegram bot that allows you to manage your finances on a local `.xlsx` file and add, delete, create an expense list, show charts and set budgets with alerts. In addition, you can synchronize it with Google Sheets.
 ## ToC
 
