@@ -1,7 +1,7 @@
-version: '3.8'
 services:
   bot:
     build: .
+    env_file:
+      - .env
     volumes:
-      - ./.env:/usr/src/app/.env
       - ./credentials.json:/usr/src/app/credentials.json

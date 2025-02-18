@@ -1,6 +1,8 @@
 import logging
 
-from dotenv import dotenv_values, load_dotenv
+from dotenv import load_dotenv
+
+from os import getenv, environ
 
 # Configure logging
 logging.basicConfig(
@@ -8,13 +10,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 # Load env vars
 load_dotenv()
-env_vars = dotenv_values()
-TELEGRAM_BOT_TOKEN = env_vars.get("TELEGRAM_BOT_TOKEN")
-TELEGRAM_USER_ID = env_vars.get("TELEGRAM_USER_ID")
-REMOTE_SPREADSHEET_ID = env_vars.get("REMOTE_SPREADSHEET_ID")
-REMOTE_EXPENSE_SHEET = env_vars.get("REMOTE_EXPENSE_SHEET")
+TELEGRAM_BOT_TOKEN: str = environ["TELEGRAM_BOT_TOKEN"]
+TELEGRAM_USER_ID: str = environ["TELEGRAM_USER_ID"]
+REMOTE_SPREADSHEET_ID: str = getenv("REMOTE_SPREADSHEET_ID")
+REMOTE_EXPENSE_SHEET: str = getenv("REMOTE_EXPENSE_SHEET")
 
 # Pagination
 ITEMS_PER_PAGE = 5

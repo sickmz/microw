@@ -103,6 +103,9 @@ TELEGRAM_USER_ID=your_telegram_user_id
 REMOTE_SPREADSHEET_ID=your_remote_remote_spreadsheet_id
 REMOTE_EXPENSE_SHEET=your_remote_expense_sheet_name
 ```
+> [!NOTE]
+> - You can find REMOTE_SPREADSHEET_ID in URL: `https://docs.google.com/spreadsheets/d/{REMOTE_SPREADSHEET_ID}/`.
+> - REMOTE_EXPENSE_SHEET is a sheet name into your google spreadsheet
 
 > [!WARNING]
 > Make sure to add `.env` and `credentials.json` to your `.gitignore` file to prevent accidental commits.
